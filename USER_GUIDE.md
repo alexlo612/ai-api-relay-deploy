@@ -1,0 +1,302 @@
+# AI API Relay Web 操作指南
+
+本指南說明如何在單台 4 GB RAM Hetzner VPS 上，以 Docker Compose 部署與維運 Sub2API、New API、Nginx、Certbot、共用 PostgreSQL、共用 Redis。
+
+## 1. 部署模式
+
+### 1.1 IP 模式
+
+初期使用 VPS public IP 與兩個 HTTPS port：
+
+- Sub2API：`https://89.167.21.176:8080`
+- New API：`https://89.167.21.176:3000`
+
+兩個 port 都由 Nginx 接收，再代理至 Docker 內部應用。Sub2API 與 New API 容器本身不 publish host port。
+
+IP 模式使用 Let's Encrypt short-lived IP certificate。此類憑證有效期約 6 天，因此至少每 12 小時應執行一次 renewal。建議以 Hetzner Firewall 或 UFW 限制 3000/8080 的來源 IP。
+
+### 1.2 Domain 模式
+
+日後取得網域後使用：
+
+- Sub2API：`https://sub2api.your-domain.com`
+- New API：`https://newapi.your-domain.com`
+
+Domain 模式只 publish 80/443，不再公開 3000/8080。
+
+## 2. VPS prerequisites
+
+建議環境：
+
+- Ubuntu 24.04 LTS 或 Debian 12
+- Docker Engine 26+ 與 Docker Compose v2 plugin
+- `make`、`openssl`、`curl`、`gettext-base` 或提供 `envsubst` 的套件
+- 4 GB RAM、至少 20 GB disk、2–4 GB swap
+- SSH 只允許管理員 IP
+- Port 80 必須公開供 ACME HTTP-01 challenge 使用
+
+安裝 Docker 請依 Docker 官方文件操作。部署前可用：
+
+```bash
+docker --version
+docker compose version
+free -h
+df -h
+```
+
+## 3. 共用 PostgreSQL 與 Redis
+
+為節省 4 GB VPS RAM，只運行一個 PostgreSQL 容器及一個 Redis 容器，但資料隔離：
+
+- PostgreSQL：Sub2API 與 New API 使用不同 database、user、password。
+- Redis：Sub2API 使用 DB 0；New API 使用 DB 1。
+
+PostgreSQL 與 Redis 不 publish host port。
+
+## 4. 首次安裝
+
+```bash
+cp .env.example .env
+chmod 600 .env
+nano .env
+make init
+```
+
+`make init` 會：
+
+1. 生成仍為 placeholder 的 secret，且不覆寫既有非 placeholder 值。
+2. 驗證 `.env`。
+3. Render Redis 與 Nginx config。
+4. 執行 `docker compose config`。
+5. 啟動 stack。
+6. 執行健康檢查。
+
+首次 TLS 建議先用 staging：
+
+```dotenv
+LETSENCRYPT_STAGING=true
+```
+
+```bash
+make enable-tls
+```
+
+staging 成功後改為：
+
+```dotenv
+LETSENCRYPT_STAGING=false
+```
+
+再執行：
+
+```bash
+make enable-tls
+```
+
+## 5. 日常操作
+
+啟動或套用設定：
+
+```bash
+make up
+```
+
+底層仍可直接使用：
+
+```bash
+docker compose up -d
+```
+
+查看狀態與健康：
+
+```bash
+make status
+make health
+```
+
+查看 logs：
+
+```bash
+make logs
+make logs SERVICE=sub2api
+make logs SERVICE=new-api
+make logs SERVICE=nginx
+```
+
+暫停及恢復：
+
+```bash
+make stop
+make start
+```
+
+重新啟動：
+
+```bash
+make restart
+make restart SERVICE=new-api
+```
+
+停止並移除容器，但保留所有資料：
+
+```bash
+make down
+```
+
+不要隨意執行 `docker compose down -v`；`-v` 會刪除 PostgreSQL、Redis、應用資料、憑證與 ACME state volumes。
+
+## 6. TLS 與 certificate renewal
+
+手動 issuance 或 renewal：
+
+```bash
+make enable-tls
+./scripts/certbot.sh renew
+./scripts/certbot.sh expiry
+```
+
+IP certificate 使用 Certbot 5.4+ 的 `--ip-address` 與 `--preferred-profile shortlived`。若 renewal 成功，script 會先執行 `nginx -t`，再 reload Nginx。
+
+建議在 VPS 上用 cron 或 systemd timer 每 12 小時執行：
+
+```bash
+cd /opt/ai-api-relay && ./scripts/certbot.sh renew >> /var/log/ai-api-relay-certbot.log 2>&1
+```
+
+## 7. 從 IP 切換至 Domain 模式
+
+1. 建立兩個 DNS A record 指向 VPS IPv4。
+2. 若 IPv6 未正確配置，不建立 AAAA record。
+3. 修改 `.env`：
+
+   ```dotenv
+   DEPLOYMENT_MODE=domain
+   SUB2API_DOMAIN=sub2api.your-domain.com
+   NEW_API_DOMAIN=newapi.your-domain.com
+   LETSENCRYPT_EMAIL=you@example.com
+   LETSENCRYPT_STAGING=true
+   ```
+
+4. 測試 staging certificate：
+
+   ```bash
+   make enable-tls
+   ```
+
+5. staging 成功後將 `LETSENCRYPT_STAGING=false`，再次執行 `make enable-tls`。
+6. 驗證 HTTPS 後，在 firewall 關閉公網 3000/8080。
+
+切換模式不會清除 PostgreSQL、Redis 或 application volumes。
+
+## 8. 更新與回滾
+
+更新前先修改 `.env` 中的 image tag，再執行：
+
+```bash
+make update
+```
+
+流程：
+
+1. 驗證設定。
+2. 建立本機備份。
+3. Pull `.env` 指定的 image tag。
+4. Recreate 有變更的 container。
+5. 執行健康檢查。
+
+回滾時，將 `.env` image tag 改回上一個已知正常版本：
+
+```bash
+make up
+make health
+```
+
+若上游已執行不可逆 database migration，需從更新前備份還原。
+
+## 9. 備份與還原
+
+```bash
+make backup
+make backup-list
+make restore FILE=backups/backup-YYYYMMDD-HHMMSS.tar.gz
+```
+
+備份內容：
+
+- Sub2API PostgreSQL dump
+- New API PostgreSQL dump
+- Sub2API `/app/data`
+- New API `/data` 與 `/app/logs`
+- SHA-256 checksum
+
+TLS certificate 可重新申請，不視為最關鍵備份資料。
+
+還原前 script 會驗證 checksum 並要求確認。若要非互動執行，可直接使用：
+
+```bash
+./scripts/restore.sh --file backups/backup-YYYYMMDD-HHMMSS.tar.gz --yes
+```
+
+## 10. Firewall
+
+IP 測試模式：
+
+| Port | 用途 | 建議來源 |
+|---:|---|---|
+| 22 | SSH | 只允許管理員 IP |
+| 80 | ACME challenge | 公開 |
+| 3000 | New API via Nginx | 只允許信任 IP |
+| 8080 | Sub2API via Nginx | 只允許信任 IP |
+
+Domain 公開模式：
+
+| Port | 用途 | 建議來源 |
+|---:|---|---|
+| 22 | SSH | 只允許管理員 IP |
+| 80 | ACME、HTTPS redirect | 公開 |
+| 443 | HTTPS Web/API | 公開 |
+
+PostgreSQL 5432 與 Redis 6379 不可向公網開放。
+
+## 11. 排錯
+
+```bash
+make status
+make health
+make logs
+docker compose config
+docker compose exec nginx nginx -t
+docker compose stats
+```
+
+某服務持續 unhealthy：
+
+```bash
+make logs SERVICE=服務名稱
+docker inspect --format '{{json .State.Health}}' 容器名稱
+```
+
+檢查資料庫與 Redis：
+
+```bash
+docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose exec redis redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
+```
+
+檢查記憶體與 OOM：
+
+```bash
+free -h
+docker stats --no-stream
+docker inspect --format '{{.State.OOMKilled}}' 容器名稱
+```
+
+## 12. Repository checks
+
+```bash
+./scripts/validate-env.sh
+docker compose config
+shellcheck scripts/*.sh postgres/init/*.sh
+```
+
+CI 會執行 Compose config、ShellCheck、YAML lint、Markdown lint、secret scan 與 Nginx config test。

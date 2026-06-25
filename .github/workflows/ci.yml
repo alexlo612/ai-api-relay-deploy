@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck yamllint gettext-base
+          npm install -g markdownlint-cli
+
+      - name: Prepare CI environment
+        run: |
+          cp .env.example .env
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.env')
+          s = p.read_text()
+          replacements = {
+              'admin@example.com': 'ops@example.org',
+              'change-me-postgres-superuser-password': 'x' * 40,
+              'change-me-sub2api-postgres-password': 'y' * 40,
+              'change-me-newapi-postgres-password': 'z' * 40,
+              'change-me-redis-password': 'r' * 40,
+              'change-me-sub2api-admin-password': 'a' * 40,
+              'change-me-sub2api-jwt-secret-32-bytes-minimum': 'j' * 48,
+              'change-me-sub2api-totp-key-32-bytes-minimum': 't' * 48,
+              'change-me-new-api-session-secret-32-bytes-minimum': 's' * 48,
+              'change-me-new-api-crypto-secret-32-bytes-minimum': 'c' * 48,
+              'change-me-pin-sub2api-tag': 'ci-reviewed-tag',
+              'change-me-pin-new-api-tag': 'ci-reviewed-tag',
+          }
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+          p.write_text(s)
+          PY
+          ./scripts/render-config.sh bootstrap
+
+      - name: Validate environment
+        run: ./scripts/validate-env.sh
+
+      - name: Validate Compose config
+        run: docker compose config
+
+      - name: Run ShellCheck
+        run: shellcheck scripts/*.sh postgres/init/*.sh
+
+      - name: Run YAML lint
+        run: yamllint .github/workflows/ci.yml .github/dependabot.yml compose.yaml compose.domain.yaml
+
+      - name: Run Markdown lint
+        run: markdownlint README.md USER_GUIDE.md PRD.md TODO.md AGENTS.md
+
+      - name: Test Nginx bootstrap config
+        run: |
+          docker run --rm \
+            -v "$PWD/config/nginx/rendered/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "$PWD/config/nginx/rendered/conf.d:/etc/nginx/conf.d:ro" \
+            -v "$PWD/config/nginx/rendered/snippets:/etc/nginx/snippets:ro" \
+            nginx:1.29.1-alpine nginx -t
+
+      - name: Run secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

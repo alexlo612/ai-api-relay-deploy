@@ -1,0 +1,238 @@
+services:
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG:?POSTGRES_IMAGE_TAG is required}
+    restart: unless-stopped
+    cpus: ${POSTGRES_CPUS:-1.0}
+    mem_limit: ${POSTGRES_MEM_LIMIT:-768m}
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SUB2API_POSTGRES_DB: ${SUB2API_POSTGRES_DB:?SUB2API_POSTGRES_DB is required}
+      SUB2API_POSTGRES_USER: ${SUB2API_POSTGRES_USER:?SUB2API_POSTGRES_USER is required}
+      SUB2API_POSTGRES_PASSWORD: ${SUB2API_POSTGRES_PASSWORD:?SUB2API_POSTGRES_PASSWORD is required}
+      NEW_API_POSTGRES_DB: ${NEW_API_POSTGRES_DB:?NEW_API_POSTGRES_DB is required}
+      NEW_API_POSTGRES_USER: ${NEW_API_POSTGRES_USER:?NEW_API_POSTGRES_USER is required}
+      NEW_API_POSTGRES_PASSWORD: ${NEW_API_POSTGRES_PASSWORD:?NEW_API_POSTGRES_PASSWORD is required}
+      TZ: ${TZ:-UTC}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-5}"
+
+  redis:
+    image: redis:${REDIS_IMAGE_TAG:?REDIS_IMAGE_TAG is required}
+    restart: unless-stopped
+    cpus: ${REDIS_CPUS:-0.5}
+    mem_limit: ${REDIS_MEM_LIMIT:-320m}
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - sh
+      - -c
+      - exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$${REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - redis_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDISCLI_AUTH}\" ping | grep -q '^PONG$'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    logging: *default-logging
+
+  sub2api:
+    image: weishaw/sub2api:${SUB2API_IMAGE_TAG:?SUB2API_IMAGE_TAG is required}
+    restart: unless-stopped
+    cpus: ${SUB2API_CPUS:-1.0}
+    mem_limit: ${SUB2API_MEM_LIMIT:-768m}
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-UTC}
+      SERVER_PORT: "8080"
+      AUTO_SETUP: "true"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${SUB2API_POSTGRES_DB:?SUB2API_POSTGRES_DB is required}
+      POSTGRES_USER: ${SUB2API_POSTGRES_USER:?SUB2API_POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${SUB2API_POSTGRES_PASSWORD:?SUB2API_POSTGRES_PASSWORD is required}
+      POSTGRES_SSLMODE: disable
+      DB_MAX_OPEN_CONNS: ${SUB2API_DB_MAX_OPEN_CONNS:-20}
+      DB_MAX_IDLE_CONNS: ${SUB2API_DB_MAX_IDLE_CONNS:-5}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_DB: ${SUB2API_REDIS_DB:-0}
+      REDIS_POOL_SIZE: ${REDIS_POOL_SIZE:-64}
+      REDIS_MIN_IDLE_CONNS: ${REDIS_MIN_IDLE_CONNS:-5}
+      REDIS_ENABLE_TLS: "false"
+      JWT_SECRET: ${SUB2API_JWT_SECRET:?SUB2API_JWT_SECRET is required}
+      TOTP_ENCRYPTION_KEY: ${SUB2API_TOTP_ENCRYPTION_KEY:?SUB2API_TOTP_ENCRYPTION_KEY is required}
+      ADMIN_EMAIL: ${SUB2API_ADMIN_EMAIL:?SUB2API_ADMIN_EMAIL is required}
+      ADMIN_PASSWORD: ${SUB2API_ADMIN_PASSWORD:?SUB2API_ADMIN_PASSWORD is required}
+      SECURITY_URL_ALLOWLIST_ENABLED: ${SUB2API_URL_ALLOWLIST_ENABLED:-true}
+    volumes:
+      - sub2api_data:/app/data
+    expose:
+      - "8080"
+    networks:
+      - edge
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+
+  new-api:
+    image: calciumion/new-api:${NEW_API_IMAGE_TAG:?NEW_API_IMAGE_TAG is required}
+    restart: unless-stopped
+    cpus: ${NEW_API_CPUS:-1.0}
+    mem_limit: ${NEW_API_MEM_LIMIT:-768m}
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-UTC}
+      SQL_DSN: postgresql://${NEW_API_POSTGRES_USER:?NEW_API_POSTGRES_USER is required}:${NEW_API_POSTGRES_PASSWORD:?NEW_API_POSTGRES_PASSWORD is required}@postgres:5432/${NEW_API_POSTGRES_DB:?NEW_API_POSTGRES_DB is required}?sslmode=disable
+      REDIS_CONN_STRING: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/${NEW_API_REDIS_DB:-1}
+      SESSION_SECRET: ${NEW_API_SESSION_SECRET:?NEW_API_SESSION_SECRET is required}
+      CRYPTO_SECRET: ${NEW_API_CRYPTO_SECRET:?NEW_API_CRYPTO_SECRET is required}
+      NODE_NAME: ${NEW_API_NODE_NAME:-new-api-node-1}
+      ERROR_LOG_ENABLED: ${NEW_API_ERROR_LOG_ENABLED:-true}
+      BATCH_UPDATE_ENABLED: ${NEW_API_BATCH_UPDATE_ENABLED:-true}
+    volumes:
+      - new_api_data:/data
+      - new_api_logs:/app/logs
+    expose:
+      - "3000"
+    networks:
+      - edge
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/status | grep -Eiq 'success|ok|true|status'"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+
+  nginx:
+    image: nginx:${NGINX_IMAGE_TAG:?NGINX_IMAGE_TAG is required}
+    restart: unless-stopped
+    cpus: ${NGINX_CPUS:-0.5}
+    mem_limit: ${NGINX_MEM_LIMIT:-128m}
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      sub2api:
+        condition: service_started
+      new-api:
+        condition: service_started
+    command:
+      - /bin/sh
+      - -c
+      - |
+        last=""
+        while :; do
+          current="$$(find /etc/letsencrypt/live -name fullchain.pem -exec stat -c '%n:%Y' {} \; 2>/dev/null | sort | tr '\n' ' ')"
+          if [ -n "$${last}" ] && [ "$${current}" != "$${last}" ]; then
+            nginx -t && nginx -s reload
+          fi
+          last="$${current}"
+          sleep 3600
+        done &
+        exec nginx -g 'daemon off;'
+    ports:
+      - "80:80"
+      - "3000:3000"
+      - "8080:8080"
+    volumes:
+      - ./config/nginx/rendered/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/rendered/conf.d:/etc/nginx/conf.d:ro
+      - ./config/nginx/rendered/snippets:/etc/nginx/snippets:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - acme_webroot:/var/www/certbot
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health | grep -q '^ok$'"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging: *default-logging
+
+  certbot:
+    image: certbot/certbot:${CERTBOT_IMAGE_TAG:?CERTBOT_IMAGE_TAG is required}
+    restart: unless-stopped
+    cpus: ${CERTBOT_CPUS:-0.25}
+    mem_limit: ${CERTBOT_MEM_LIMIT:-128m}
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: /bin/sh
+    command: -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep "$${CERTBOT_RENEW_INTERVAL_SECONDS:-43200}"; done'
+    environment:
+      CERTBOT_RENEW_INTERVAL_SECONDS: ${CERTBOT_RENEW_INTERVAL_SECONDS:-43200}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - acme_webroot:/var/www/certbot
+    networks:
+      - edge
+    logging: *default-logging
+
+networks:
+  edge:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  sub2api_data:
+  new_api_data:
+  new_api_logs:
+  letsencrypt:
+  acme_webroot:

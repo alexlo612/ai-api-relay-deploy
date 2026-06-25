@@ -1,0 +1,62 @@
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    location / {
+        default_type text/plain;
+        return 200 'ai-api-relay ip mode: use https://${SERVER_PUBLIC_IP}:8080 or https://${SERVER_PUBLIC_IP}:3000';
+    }
+}
+
+server {
+    listen 8080 ssl http2;
+    server_name ${SERVER_PUBLIC_IP};
+
+    ssl_certificate /etc/letsencrypt/live/${IP_CERT_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${IP_CERT_NAME}/privkey.pem;
+    include /etc/nginx/snippets/tls.conf;
+
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    location / {
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/proxy-streaming.conf;
+        proxy_pass http://sub2api:8080;
+    }
+}
+
+server {
+    listen 3000 ssl http2;
+    server_name ${SERVER_PUBLIC_IP};
+
+    ssl_certificate /etc/letsencrypt/live/${IP_CERT_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${IP_CERT_NAME}/privkey.pem;
+    include /etc/nginx/snippets/tls.conf;
+
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    location / {
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/proxy-streaming.conf;
+        proxy_pass http://new-api:3000;
+    }
+}
