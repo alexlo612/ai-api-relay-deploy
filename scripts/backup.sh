@@ -22,11 +22,14 @@ main() {
   docker_compose exec -T postgres pg_dump -U "${POSTGRES_USER}" -d "${NEW_API_POSTGRES_DB}" --format=custom > "${backup_dir}/postgres/${NEW_API_POSTGRES_DB}.dump"
 
   log "Archiving application volumes."
-  local project_name="${COMPOSE_PROJECT_NAME//-/_}"
+  local sub2api_volume new_api_volume new_api_logs_volume
+  sub2api_volume="$(compose_volume_name sub2api_data)"
+  new_api_volume="$(compose_volume_name new_api_data)"
+  new_api_logs_volume="$(compose_volume_name new_api_logs)"
   docker run --rm \
-    -v "${project_name}_sub2api_data:/volumes/sub2api:ro" \
-    -v "${project_name}_new_api_data:/volumes/new_api:ro" \
-    -v "${project_name}_new_api_logs:/volumes/new_api_logs:ro" \
+    -v "${sub2api_volume}:/volumes/sub2api:ro" \
+    -v "${new_api_volume}:/volumes/new_api:ro" \
+    -v "${new_api_logs_volume}:/volumes/new_api_logs:ro" \
     -v "${backup_dir}/volumes:/backup" \
     alpine:3.22 sh -c 'cd /volumes && tar -czf /backup/app-data.tar.gz sub2api new_api new_api_logs'
 

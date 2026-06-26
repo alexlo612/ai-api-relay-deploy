@@ -91,3 +91,12 @@ PY
 redact() {
   sed -E 's#(postgresql://[^:]+:)[^@]+#\1REDACTED#g; s#(redis://:)[^@]+#\1REDACTED#g; s#(PASSWORD|SECRET|KEY|TOKEN)=([^[:space:]]+)#\1=REDACTED#g'
 }
+
+compose_volume_name() {
+  local volume="$1"
+  local name
+  require_command python3
+  name="$(docker_compose config --format json | python3 -c 'import json,sys; volume=sys.argv[1]; data=json.load(sys.stdin); print(data["volumes"][volume].get("name", ""))' "${volume}")"
+  [[ -n "${name}" ]] || fail "Unable to resolve Compose volume name: ${volume}"
+  printf '%s\n' "${name}"
+}

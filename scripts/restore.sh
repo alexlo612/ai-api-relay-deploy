@@ -63,12 +63,14 @@ backup_root="$(find "${workdir}" -maxdepth 1 -type d -name 'backup-*' | head -n 
 log "Stopping applications for consistent restore."
 docker_compose stop nginx sub2api new-api
 
-project_name="${COMPOSE_PROJECT_NAME//-/_}"
+sub2api_volume="$(compose_volume_name sub2api_data)"
+new_api_volume="$(compose_volume_name new_api_data)"
+new_api_logs_volume="$(compose_volume_name new_api_logs)"
 log "Restoring application data volumes."
 docker run --rm \
-  -v "${project_name}_sub2api_data:/restore/sub2api" \
-  -v "${project_name}_new_api_data:/restore/new_api" \
-  -v "${project_name}_new_api_logs:/restore/new_api_logs" \
+  -v "${sub2api_volume}:/restore/sub2api" \
+  -v "${new_api_volume}:/restore/new_api" \
+  -v "${new_api_logs_volume}:/restore/new_api_logs" \
   -v "${backup_root}/volumes:/backup:ro" \
   alpine:3.22 sh -c 'set -e; find /restore/sub2api /restore/new_api /restore/new_api_logs -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -xzf /backup/app-data.tar.gz -C /restore'
 
