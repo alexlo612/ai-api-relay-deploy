@@ -51,9 +51,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] A clean-volume startup creates both databases and users.
-- [ ] Each application user can access only its intended database.
-- [ ] PostgreSQL becomes healthy and survives container recreation.
+- [x] A clean-volume startup creates both databases and users.
+- [x] Each application user can access only its intended database.
+- [x] PostgreSQL becomes healthy and survives container recreation.
 
 ## 3. Shared Redis
 
@@ -66,9 +66,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Unauthenticated Redis access fails.
-- [ ] Authenticated health check succeeds.
-- [ ] Both applications can use their assigned DB indexes.
+- [x] Unauthenticated Redis access fails.
+- [x] Authenticated health check succeeds.
+- [x] Both applications can use their assigned DB indexes.
 
 ## 4. Sub2API service
 
@@ -82,9 +82,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Sub2API starts from clean data and reports healthy.
-- [ ] Data and login sessions survive container recreation.
-- [ ] It is reachable only through Nginx.
+- [x] Sub2API starts from clean data and reports healthy.
+- [x] Data and login sessions survive container recreation.
+- [x] It is reachable only through Nginx.
 
 ## 5. New API service
 
@@ -98,9 +98,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] New API starts from clean data and reports healthy.
-- [ ] Data and sessions survive container recreation.
-- [ ] It is reachable only through Nginx.
+- [x] New API starts from clean data and reports healthy.
+- [x] Data and sessions survive container recreation.
+- [x] It is reachable only through Nginx.
 
 ## 6. Docker networking and Compose quality
 
@@ -114,9 +114,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] `docker compose config` succeeds.
-- [ ] Host ports 5432, 6379, and application container ports are not published directly.
-- [ ] Total configured memory limits leave reasonable capacity for the host OS.
+- [x] `docker compose config` succeeds.
+- [x] Host ports 5432, 6379, and application container ports are not published directly.
+- [x] Total configured memory limits leave reasonable capacity for the host OS.
 
 ## 7. Nginx IP mode
 
@@ -130,10 +130,10 @@ Acceptance:
 
 Acceptance:
 
-- [ ] `nginx -t` succeeds for bootstrap and production IP configurations.
-- [ ] `https://89.167.21.176:8080` routes to Sub2API.
-- [ ] `https://89.167.21.176:3000` routes to New API.
-- [ ] Streaming responses are not buffered.
+- [x] `nginx -t` succeeds for bootstrap and production IP configurations.
+- [x] `https://89.167.21.176:8080` routes to Sub2API.
+- [x] `https://89.167.21.176:3000` routes to New API.
+- [x] Streaming responses are not buffered.
 
 ## 8. Certbot IP certificate automation
 
@@ -147,10 +147,10 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Staging IP certificate issuance succeeds on the VPS.
-- [ ] Production IP certificate is trusted for `89.167.21.176`.
-- [ ] Renewal dry-run or an equivalent safe validation succeeds.
-- [ ] Nginx serves the renewed certificate without downtime.
+- [x] Staging IP certificate issuance succeeds on the VPS.
+- [x] Production IP certificate is trusted for `89.167.21.176`.
+- [x] Renewal dry-run or an equivalent safe validation succeeds.
+- [x] Nginx serves the renewed certificate without downtime.
 
 ## 9. Domain migration mode
 
@@ -192,9 +192,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Healthy stack returns exit code 0.
-- [ ] A deliberately stopped application is detected and returns non-zero.
-- [ ] Output is useful to a person unfamiliar with the implementation.
+- [x] Healthy stack returns exit code 0.
+- [x] A deliberately stopped application is detected and returns non-zero.
+- [x] Output is useful to a person unfamiliar with the implementation.
 
 ## 12. Local backup and restore
 
@@ -208,9 +208,9 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Backup completes without exposing credentials in process output.
+- [x] Backup completes without exposing credentials in process output.
 - [ ] Restore succeeds in a clean test environment.
-- [ ] Checksums detect a deliberately modified archive.
+- [x] Checksums detect a deliberately modified archive.
 
 ## 13. Documentation
 
@@ -238,41 +238,41 @@ Acceptance:
 
 Acceptance:
 
-- [ ] CI passes on a clean clone without production secrets.
-- [ ] CI fails for an invalid Compose file or shell error.
+- [x] CI passes on a clean clone without production secrets.
+- [x] CI fails for an invalid Compose file or shell error.
 
 ## 15. VPS preflight — run only when explicitly requested
 
-- [ ] SSH to `alex@89.167.21.176` and record OS version, CPU architecture, RAM, disk, swap, open ports, firewall state, Docker/Compose versions, and existing Docker workloads.
-- [ ] Confirm whether user `alex` has passwordless or interactive `sudo`.
-- [ ] Check whether ports 80, 443, 3000, and 8080 are already in use.
-- [ ] Check whether the public IPv4 is directly assigned and reachable for ACME validation.
-- [ ] Do not install, stop, or modify anything during preflight unless separately authorized.
-- [ ] Record findings in a non-secret deployment note or issue.
+- [x] SSH to `alex@89.167.21.176` and record OS version, CPU architecture, RAM, disk, swap, open ports, firewall state, Docker/Compose versions, and existing Docker workloads.
+- [x] Confirm whether user `alex` has passwordless or interactive `sudo`.
+- [x] Check whether ports 80, 443, 3000, and 8080 are already in use.
+- [x] Check whether the public IPv4 is directly assigned and reachable for ACME validation.
+- [x] Do not install, stop, or modify anything during preflight unless separately authorized.
+- [x] Record findings in a non-secret deployment note or issue.
 
 Acceptance:
 
-- [ ] Preflight report identifies blockers without changing server state.
+- [x] Preflight report identifies blockers without changing server state.
 
 ## 16. VPS deployment — run only when explicitly requested
 
-- [ ] Create a dedicated deployment directory such as `/opt/ai-api-relay`.
-- [ ] Decide whether deployment files are owned by `alex` or a dedicated service user; use root only where required.
-- [ ] Install or configure Docker only after reviewing preflight findings.
-- [ ] Copy or clone the repository and create a production `.env` with mode `0600`.
+- [x] Create a dedicated deployment directory such as `/opt/ai-api-relay`.
+- [x] Decide whether deployment files are owned by `alex` or a dedicated service user; use root only where required.
+- [x] Install or configure Docker only after reviewing preflight findings.
+- [x] Copy or clone the repository and create a production `.env` with mode `0600`.
 - [ ] Configure 2–4 GB swap if absent and approved.
 - [ ] Configure Hetzner Firewall or UFW with minimum required ports.
-- [ ] Run staging certificate bootstrap before production issuance.
-- [ ] Deploy with `make init`.
-- [ ] Verify container health, HTTPS trust, routing, persistence, logs, memory usage, reboot recovery, and backup creation.
-- [ ] Record exact deployed image tags and a rollback point.
+- [x] Run staging certificate bootstrap before production issuance.
+- [x] Deploy with `make init`.
+- [x] Verify container health, HTTPS trust, routing, persistence, logs, memory usage, reboot recovery, and backup creation.
+- [x] Record exact deployed image tags and a rollback point.
 
 Acceptance:
 
-- [ ] Both IP HTTPS URLs work from an external client.
-- [ ] PostgreSQL and Redis are not publicly reachable.
+- [x] Both IP HTTPS URLs work from an external client.
+- [x] PostgreSQL and Redis are not publicly reachable.
 - [ ] All required containers are healthy after a VPS reboot.
-- [ ] Idle memory usage is within the PRD target and no OOM event occurs.
+- [x] Idle memory usage is within the PRD target and no OOM event occurs.
 
 ## 17. GitHub publication — run only when explicitly requested
 
