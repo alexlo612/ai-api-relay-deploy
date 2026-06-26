@@ -38,7 +38,7 @@ nginx_reload_if_valid() {
 
 issue_ip() {
   ensure_bootstrap_nginx
-  docker_compose run --rm certbot certonly \
+  docker_compose run --rm --entrypoint certbot certbot certonly \
     "${staging_args[@]}" \
     "${certbot_email_args[@]}" \
     --preferred-profile "${IP_CERT_PREFERRED_PROFILE:-shortlived}" \
@@ -66,7 +66,7 @@ issue_domain() {
   check_domain_dns
   "${script_dir}/render-config.sh" bootstrap
   docker_compose up -d --no-deps nginx
-  docker_compose run --rm certbot certonly \
+  docker_compose run --rm --entrypoint certbot certbot certonly \
     "${staging_args[@]}" \
     "${certbot_email_args[@]}" \
     --webroot --webroot-path /var/www/certbot \
@@ -78,12 +78,12 @@ issue_domain() {
 }
 
 renew() {
-  docker_compose run --rm certbot renew --webroot -w /var/www/certbot
+  docker_compose run --rm --entrypoint certbot certbot renew --webroot -w /var/www/certbot
   nginx_reload_if_valid
 }
 
 expiry() {
-  docker_compose run --rm certbot certificates || true
+  docker_compose run --rm --entrypoint certbot certbot certificates || true
 }
 
 main() {
