@@ -4,6 +4,10 @@
 
 本倉庫只管理部署與維運檔案，不修改 Sub2API 或 New API 的上游程式碼。
 
+## Live demo
+
+Try New API here: <https://89.167.21.176:3000>
+
 ## 架構
 
 ```mermaid
