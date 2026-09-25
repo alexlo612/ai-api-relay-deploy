@@ -300,3 +300,39 @@ shellcheck scripts/*.sh postgres/init/*.sh
 ```
 
 CI 會執行 Compose config、ShellCheck、YAML lint、Markdown lint、secret scan 與 Nginx config test。
+
+## 13. New API 私人使用與定價稽核
+
+私人分享模式建議關閉公開註冊、演示站點及新用戶免費額度。不要把 New API
+管理 token 或渠道密鑰放進 Git；只為朋友建立個別帳號及有限額 token。
+定期檢查：
+
+```bash
+make newapi-audit
+./scripts/revoke-suspended-tokens.sh
+```
+
+稽核只顯示開關、數量與啟用渠道的模型計價覆蓋情形，不顯示 token 或渠道密鑰。
+若已停用帳號仍有啟用 token，可先檢查完整資料庫備份空間，再執行：
+
+```bash
+./scripts/revoke-suspended-tokens.sh --apply
+```
+
+此命令會在忽略 Git 的 `backups/` 目錄建立及驗證 New API 資料庫備份，
+只停用已停用、非 `admin`、`alex-user-test`、`alex-user-test-02` 帳號的啟用 token。
+New API 的 Redis token 快取可能短暫保留舊狀態；已停用帳號仍應被帳號狀態阻擋。
+
+New API 的系統設定／倍率設定有「同步上游倍率」，可比較上游
+`/api/ratio_config`、`/api/pricing`、OpenRouter 及內建 `models.dev` 價格預設。
+它能提供新模型價格候選值，但不是 OpenAI、Anthropic 官方價格的保證，
+也不能推斷 `claude-opus` 等自訂別名對應哪個實際上游型號。
+不要未經審核就批量覆寫既有 `tiered_expr` 計費。
+新模型上線時，先確認渠道路由、實際上游型號及官方輸入／輸出／快取價格，
+再預覽同步差異或在管理介面設定計費，最後執行 `make newapi-audit`。
+稽核中的 `UNSET` 代表沒有明確的模型價格或倍率；
+Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
+稽核亦顯示啟用帳號持有的無限額、永不到期和未限制模型的 token 數量。
+依朋友的使用需求設定明確額度與期限，避免憑證外洩後產生無上限費用；
+管理員自己的 token 亦應分用途建立、定期撤銷。不要在未決定每人預算前
+任意套用同一額度。

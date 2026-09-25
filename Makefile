@@ -7,7 +7,7 @@ COMPOSE_BASE := -f compose.yaml
 COMPOSE_DOMAIN := $(shell if [ -f .env ] && grep -q '^DEPLOYMENT_MODE=domain' .env; then printf -- '-f compose.domain.yaml'; fi)
 COMPOSE := docker compose $(COMPOSE_BASE) $(COMPOSE_DOMAIN)
 
-.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render
+.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render newapi-audit
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; print "AI API Relay deployment commands:"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -41,6 +41,9 @@ status: ## Show Compose service status
 
 health: ## Run full health and diagnostics report
 	@./scripts/healthcheck.sh
+
+newapi-audit: ## Review New API access and routed-model pricing without secrets
+	@./scripts/newapi-audit.sh
 
 logs: ## Follow logs, optionally SERVICE=name
 	@if [ -n "$(SERVICE)" ]; then $(COMPOSE) logs -f --tail=200 "$(SERVICE)"; else $(COMPOSE) logs -f --tail=200; fi
