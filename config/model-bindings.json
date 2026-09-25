@@ -1,8 +1,20 @@
 {
   "sub2api_group_id": 2,
-  "aliases": {
+  "channels": {
+    "openai": 6,
+    "claude": 8
+  },
+  "legacy_aliases": {
     "claude-fable": "gpt-6-astra",
     "claude-opus": "gpt-6-sol",
     "claude-sonnet": "gpt-6-luna"
+  },
+  "aliases": {
+    "claude-fable-5-1": "gpt-6-astra",
+    "claude-opus-5-5": "gpt-6-sol",
+    "claude-sonnet-5": "gpt-6-luna",
+    "coding-fast": "gpt-6-luna",
+    "coding-pro": "gpt-6-sol",
+    "coding-max": "gpt-6-astra"
   }
 }

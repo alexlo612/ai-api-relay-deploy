@@ -45,10 +45,10 @@ health: ## Run full health and diagnostics report
 newapi-audit: ## Review New API access and routed-model pricing without secrets
 	@./scripts/newapi-audit.sh
 
-model-bindings-check: ## Compare Claude Code aliases with GPT-6 targets
+model-bindings-check: ## Compare coding and Claude-compatible aliases with GPT-6 targets
 	@./scripts/model-bindings.sh --check
 
-model-bindings-apply: ## Back up and apply Claude Code model routing and billing
+model-bindings-apply: ## Back up and apply model aliases, routing, and billing
 	@./scripts/model-bindings.sh --apply
 
 logs: ## Follow logs, optionally SERVICE=name

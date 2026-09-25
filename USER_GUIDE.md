@@ -337,19 +337,44 @@ Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
 管理員自己的 token 亦應分用途建立、定期撤銷。不要在未決定每人預算前
 任意套用同一額度。
 
-## 14. Claude Code 相容模型別名
+## 14. 模型別名與計價
 
-`config/model-bindings.json` 定義 New API 對外提供的三個自訂別名：
-`claude-fable` 對應 `gpt-6-astra`、`claude-opus` 對應 `gpt-6-sol`、
-`claude-sonnet` 對應 `gpt-6-luna`。這些名稱只是 Claude Code 相容入口，
-實際上游是 OpenAI 模型，不是 Anthropic 官方 Claude 模型 ID 或價格。
-不要隨 Anthropic 發布新版型號，自動改動這些別名的上游目標。
+`config/model-bindings.json` 定義 New API 對外提供的六個入口：
+
+| Claude Code (`/v1/messages`) | 通用 coding 名稱 (`/v1/responses`) | 實際上游 |
+|---|---|---|
+| `claude-sonnet-5` | `coding-fast` | `gpt-6-luna` |
+| `claude-opus-5-5` | `coding-pro` | `gpt-6-sol` |
+| `claude-fable-5-1` | `coding-max` | `gpt-6-astra` |
+
+`claude-*` 是與 Anthropic 模型 ID 同名的**相容別名**，不是 Anthropic
+服務或其計價。Claude Code 使用 New API 的 Messages endpoint，Codex
+使用 New API 的 Responses endpoint。`coding-*` 已在兩種 API endpoint
+以非串流短請求測通；Claude Code 的模型設定仍建議使用版本化名稱。
+舊的未版本化
+`claude-fable`、`claude-opus`、`claude-sonnet` 會在套用時移除。
+日後更新實際上游時，須審核新的模型價格與能力，再修改同一個 JSON
+並重新執行檢查及套用；不會因 Anthropic 發布新版而自動變更。
 
 Sub2API OpenAI 群組負責 Messages dispatch 映射；New API 維持公開模型名、
-channel 和對外計價。New API 的 model mapping 保持空白，避免兩層重複
-將 Claude 別名改成不同的實際型號。別名價格由對應 GPT-6 型號的
+channel 和對外計價。New API 的 OpenAI channel 對 `coding-*` 設定
+model mapping，讓 Responses 上游取得真實 GPT-6 型號；Claude channel
+不額外映射版本化別名。別名價格由對應 GPT-6 型號的
 `ModelRatio`、`CompletionRatio`、快取倍率、`billing_mode` 與
 `billing_expr` 複製而來；不以 Anthropic 官方價格計價。
+
+2026-09-25 VPS 上的 New API `tiered_expr` 快照（USD / 百萬 token）：
+
+| 等級 | 不超過 272k：輸入 / 輸出 / 快取讀取 / 快取寫入 | 超過 272k：輸入 / 輸出 / 快取讀取 / 快取寫入 |
+|---|---|---|
+| `coding-fast` | 0.10 / 0.50 / 0.01 / 0.125 | 0.20 / 0.75 / 0.02 / 0.25 |
+| `coding-pro` | 2 / 10 / 0.20 / 2.50 | 4 / 15 / 0.40 / 5 |
+| `coding-max` | 10 / 50 / 1 / 12.50 | 20 / 75 / 2 / 25 |
+
+三個對應的 `claude-*` 名稱使用相同的計費表。這是**目前 relay 的設定**，
+不是 Anthropic 公布的價格，也不保證未來模型價格不變。若修改上游目標，
+先更新其 New API 定價，再重新套用別名；實際扣額可於 New API usage log
+核對，不能僅以 HTTP 200 代表計費正確。
 
 在 VPS 上先檢查，再套用：
 
@@ -359,7 +384,7 @@ make model-bindings-apply
 ```
 
 套用命令會在忽略 Git 的 `backups/model-bindings-*/` 建立兩份 PostgreSQL
-dump 和 SHA-256 checksum，更新 New API 計價後短暫重啟該服務，
+dump 和 SHA-256 checksum，更新 New API channel、能力及計價後短暫重啟該服務，
 再透過 Sub2API admin API 更新群組。管理 API key 預設讀取
 `~/.config/ai-api-relay/sub2api-admin-api-key`，也可用
 `SUB2API_ADMIN_API_KEY_FILE` 指定 mode `0600` 的檔案。指令不會輸出 key。

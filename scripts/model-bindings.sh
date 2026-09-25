@@ -17,24 +17,35 @@ config_file="${repo_root}/config/model-bindings.json"
 key_file="${SUB2API_ADMIN_API_KEY_FILE:-${HOME}/.config/ai-api-relay/sub2api-admin-api-key}"
 [[ -f "${key_file}" ]] || fail "Missing Sub2API admin API key file: ${key_file}"
 
-bindings="$(python3 - "${config_file}" <<'PY'
+config="$(python3 - "${config_file}" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as source:
     config = json.load(source)
 aliases = config["aliases"]
-if set(aliases) != {"claude-fable", "claude-opus", "claude-sonnet"}:
-    raise SystemExit("Expected exactly the three Claude Code aliases")
+if set(aliases) != {
+    "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5",
+    "coding-fast", "coding-pro", "coding-max",
+}:
+    raise SystemExit("Expected three versioned Claude and three coding aliases")
 if any(not isinstance(target, str) or not target.startswith("gpt-6-")
        for target in aliases.values()):
     raise SystemExit("Every alias must target a GPT-6 model")
 if not isinstance(config["sub2api_group_id"], int) or config["sub2api_group_id"] <= 0:
     raise SystemExit("sub2api_group_id must be a positive integer")
-print(json.dumps(aliases, separators=(",", ":")))
+if config["channels"] != {"openai": 6, "claude": 8}:
+    raise SystemExit("Review channel IDs before changing this deployment")
+if config["legacy_aliases"] != {
+    "claude-fable": aliases["claude-fable-5-1"],
+    "claude-opus": aliases["claude-opus-5-5"],
+    "claude-sonnet": aliases["claude-sonnet-5"],
+}:
+    raise SystemExit("Legacy bindings differ from the previous deployment")
+print(json.dumps(config, separators=(",", ":")))
 PY
 )"
-[[ -n "${bindings}" ]] || fail "Invalid model-bindings configuration"
+[[ -n "${config}" ]] || fail "Invalid model-bindings configuration"
 
 sub2api_args=(--config "${config_file}" --key-file "${key_file}")
 sub2api_plan="$(python3 "${script_dir}/model-bindings-sub2api.py" "${sub2api_args[@]}")"
@@ -43,22 +54,12 @@ printf '%s\n' "${sub2api_plan}"
 newapi_mismatches() {
   docker_compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
     -U "${POSTGRES_USER}" -d "${NEW_API_POSTGRES_DB}" \
-    -v "bindings=${bindings}" -At <<'SQL'
-SELECT count(*)
-FROM jsonb_each_text(:'bindings'::jsonb) b
-CROSS JOIN options o
-WHERE o.key IN (
-    'ModelRatio', 'CompletionRatio', 'CacheRatio', 'CreateCacheRatio',
-    'ImageRatio', 'AudioRatio', 'AudioCompletionRatio', 'ModelPrice',
-    'billing_setting.billing_mode', 'billing_setting.billing_expr'
-)
-AND (o.value::jsonb -> b.key) IS DISTINCT FROM (o.value::jsonb -> b.value);
-SQL
+    -v "config=${config}" -At < "${script_dir}/model-bindings-newapi-check.sql"
 }
 
 mismatches="$(newapi_mismatches)"
 [[ "${mismatches}" =~ ^[0-9]+$ ]] || fail "Could not compare New API pricing options"
-log "New API pricing entries differing from GPT-6 targets: ${mismatches}"
+log "New API routing/pricing differences: ${mismatches}"
 
 if [[ "${mode}" == --check ]]; then
   exit 0
@@ -76,10 +77,10 @@ docker_compose exec -T postgres pg_dump -U "${POSTGRES_USER}" -d "${SUB2API_POST
 docker_compose exec -T postgres pg_dump -U "${POSTGRES_USER}" -d "${NEW_API_POSTGRES_DB}" --format=custom > "${backup_dir}/newapi.dump"
 (cd "${backup_dir}" && shasum -a 256 sub2api.dump newapi.dump > SHA256SUMS && shasum -a 256 -c SHA256SUMS)
 
-log "Copying the GPT-6 target billing settings to New API aliases."
+log "Updating New API channels, abilities, and GPT-6-based alias billing."
 docker_compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
   -U "${POSTGRES_USER}" -d "${NEW_API_POSTGRES_DB}" \
-  -v "bindings=${bindings}" < "${script_dir}/model-bindings-newapi.sql"
+  -v "config=${config}" < "${script_dir}/model-bindings-newapi.sql"
 
 log "Restarting New API to load the updated billing settings."
 docker_compose restart new-api
@@ -97,5 +98,5 @@ done
 log "Applying Sub2API exact Messages-dispatch mappings."
 python3 "${script_dir}/model-bindings-sub2api.py" "${sub2api_args[@]}" --apply
 [[ "$(newapi_mismatches)" == 0 ]] ||
-  fail "New API billing settings did not persist; backup is at ${backup_dir}"
+  fail "New API routing/pricing settings did not persist; backup is at ${backup_dir}"
 log "Model bindings applied and verified. Backup: ${backup_dir}"
