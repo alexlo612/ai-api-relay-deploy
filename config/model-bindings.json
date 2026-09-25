@@ -1,0 +1,8 @@
+{
+  "sub2api_group_id": 2,
+  "aliases": {
+    "claude-fable": "gpt-6-astra",
+    "claude-opus": "gpt-6-sol",
+    "claude-sonnet": "gpt-6-luna"
+  }
+}

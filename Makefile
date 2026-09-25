@@ -7,7 +7,7 @@ COMPOSE_BASE := -f compose.yaml
 COMPOSE_DOMAIN := $(shell if [ -f .env ] && grep -q '^DEPLOYMENT_MODE=domain' .env; then printf -- '-f compose.domain.yaml'; fi)
 COMPOSE := docker compose $(COMPOSE_BASE) $(COMPOSE_DOMAIN)
 
-.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render newapi-audit
+.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render newapi-audit model-bindings-check model-bindings-apply
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; print "AI API Relay deployment commands:"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -44,6 +44,12 @@ health: ## Run full health and diagnostics report
 
 newapi-audit: ## Review New API access and routed-model pricing without secrets
 	@./scripts/newapi-audit.sh
+
+model-bindings-check: ## Compare Claude Code aliases with GPT-6 targets
+	@./scripts/model-bindings.sh --check
+
+model-bindings-apply: ## Back up and apply Claude Code model routing and billing
+	@./scripts/model-bindings.sh --apply
 
 logs: ## Follow logs, optionally SERVICE=name
 	@if [ -n "$(SERVICE)" ]; then $(COMPOSE) logs -f --tail=200 "$(SERVICE)"; else $(COMPOSE) logs -f --tail=200; fi

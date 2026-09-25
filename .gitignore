@@ -26,5 +26,5 @@ config/nginx/rendered/
 *.tar
 *.tar.gz
 *.sql
+!scripts/model-bindings-newapi.sql
 *.dump
-

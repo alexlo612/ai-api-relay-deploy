@@ -336,3 +336,31 @@ Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
 依朋友的使用需求設定明確額度與期限，避免憑證外洩後產生無上限費用；
 管理員自己的 token 亦應分用途建立、定期撤銷。不要在未決定每人預算前
 任意套用同一額度。
+
+## 14. Claude Code 相容模型別名
+
+`config/model-bindings.json` 定義 New API 對外提供的三個自訂別名：
+`claude-fable` 對應 `gpt-6-astra`、`claude-opus` 對應 `gpt-6-sol`、
+`claude-sonnet` 對應 `gpt-6-luna`。這些名稱只是 Claude Code 相容入口，
+實際上游是 OpenAI 模型，不是 Anthropic 官方 Claude 模型 ID 或價格。
+不要隨 Anthropic 發布新版型號，自動改動這些別名的上游目標。
+
+Sub2API OpenAI 群組負責 Messages dispatch 映射；New API 維持公開模型名、
+channel 和對外計價。New API 的 model mapping 保持空白，避免兩層重複
+將 Claude 別名改成不同的實際型號。別名價格由對應 GPT-6 型號的
+`ModelRatio`、`CompletionRatio`、快取倍率、`billing_mode` 與
+`billing_expr` 複製而來；不以 Anthropic 官方價格計價。
+
+在 VPS 上先檢查，再套用：
+
+```bash
+make model-bindings-check
+make model-bindings-apply
+```
+
+套用命令會在忽略 Git 的 `backups/model-bindings-*/` 建立兩份 PostgreSQL
+dump 和 SHA-256 checksum，更新 New API 計價後短暫重啟該服務，
+再透過 Sub2API admin API 更新群組。管理 API key 預設讀取
+`~/.config/ai-api-relay/sub2api-admin-api-key`，也可用
+`SUB2API_ADMIN_API_KEY_FILE` 指定 mode `0600` 的檔案。指令不會輸出 key。
+套用失敗不會自動還原資料；應先檢查狀態和備份，再按還原指南操作。
