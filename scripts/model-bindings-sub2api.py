@@ -48,6 +48,10 @@ def main():
     config = json.loads(args.config.read_text())
     aliases = config["aliases"]
     legacy = config["legacy_aliases"]
+    claude_aliases = {alias: target for alias, target in aliases.items()
+                      if alias.startswith("claude-")}
+    redundant_aliases = {alias: target for alias, target in aliases.items()
+                         if alias.startswith("coding-")}
     key_mode = stat.S_IMODE(args.key_file.stat().st_mode)
     if key_mode != 0o600 or args.key_file.stat().st_uid != os.getuid():
         raise RuntimeError("Sub2API admin key file must be owned by this user and mode 0600")
@@ -65,34 +69,42 @@ def main():
     if current.get("sonnet_mapped_model") != aliases["claude-sonnet-5"]:
         raise RuntimeError("Sonnet family mapping differs from the desired GPT-6 target")
     exact = current.get("exact_model_mappings") or {}
-    for alias, target in aliases.items():
+    for alias, target in claude_aliases.items():
         if alias in exact and exact[alias] != target:
             raise RuntimeError(f"Existing exact mapping for {alias} conflicts with the desired target")
-    for alias, target in legacy.items():
+    for alias, target in {**legacy, **redundant_aliases}.items():
         if alias in exact and exact[alias] != target:
-            raise RuntimeError(f"Legacy exact mapping for {alias} changed unexpectedly")
+            raise RuntimeError(f"Exact mapping to remove for {alias} changed unexpectedly")
 
-    changes = {alias: target for alias, target in aliases.items() if exact.get(alias) != target}
-    removals = set(exact).intersection(legacy)
+    changes = {alias: target for alias, target in claude_aliases.items()
+               if exact.get(alias) != target}
+    removals = set(exact).intersection({**legacy, **redundant_aliases})
     if not changes and not removals:
         print("Sub2API exact mappings already match the desired aliases.")
         return
-    print("Sub2API exact mappings to add: " +
-          ", ".join(f"{alias} -> {target}" for alias, target in changes.items()) +
-          "; to remove: " + ", ".join(sorted(removals)))
+    actions = []
+    if changes:
+        actions.append("add: " +
+                       ", ".join(f"{alias} -> {target}"
+                                 for alias, target in changes.items()))
+    if removals:
+        actions.append("remove: " + ", ".join(sorted(removals)))
+    print("Sub2API exact mappings to " + "; ".join(actions))
     if not args.apply:
         return
 
     updated = dict(current)
     updated["exact_model_mappings"] = {
-        **{alias: target for alias, target in exact.items() if alias not in legacy},
+        **{alias: target for alias, target in exact.items()
+           if alias not in legacy and alias not in redundant_aliases},
         **changes,
     }
     group_request(url, key, "PUT", {"messages_dispatch_model_config": updated})
     saved = group_request(url, key).get("messages_dispatch_model_config") or {}
     if any(saved.get("exact_model_mappings", {}).get(alias) != target
-           for alias, target in aliases.items()) or any(
-               alias in saved.get("exact_model_mappings", {}) for alias in legacy):
+           for alias, target in claude_aliases.items()) or any(
+               alias in saved.get("exact_model_mappings", {})
+               for alias in {**legacy, **redundant_aliases}):
         raise RuntimeError("Sub2API did not persist the expected exact mappings")
     print("Sub2API exact mappings verified.")
 

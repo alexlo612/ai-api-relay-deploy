@@ -6,8 +6,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/common.sh"
 
 mode="${1:---check}"
-[[ $# -le 1 && ( "${mode}" == --check || "${mode}" == --apply ) ]] ||
-  fail "Usage: $0 [--check|--apply]"
+[[ $# -le 1 && ( "${mode}" == --check || "${mode}" == --apply ||
+                   "${mode}" == --apply-sub2api ) ]] ||
+  fail "Usage: $0 [--check|--apply|--apply-sub2api]"
 
 load_env "${repo_root}/.env"
 require_command python3
@@ -50,6 +51,24 @@ PY
 sub2api_args=(--config "${config_file}" --key-file "${key_file}")
 sub2api_plan="$(python3 "${script_dir}/model-bindings-sub2api.py" "${sub2api_args[@]}")"
 printf '%s\n' "${sub2api_plan}"
+
+if [[ "${mode}" == --apply-sub2api ]]; then
+  if [[ "${sub2api_plan}" == "Sub2API exact mappings already match the desired aliases." ]]; then
+    log "Sub2API mappings already match; no backup needed."
+    exit 0
+  fi
+  umask 077
+  backup_dir="${repo_root}/backups/model-bindings-sub2api-$(date -u +%Y%m%d-%H%M%S)"
+  mkdir -p "${backup_dir}"
+  log "Backing up Sub2API before updating Messages-dispatch mappings."
+  docker_compose exec -T postgres pg_dump -U "${POSTGRES_USER}" \
+    -d "${SUB2API_POSTGRES_DB}" --format=custom > "${backup_dir}/sub2api.dump"
+  (cd "${backup_dir}" && shasum -a 256 sub2api.dump > SHA256SUMS &&
+    shasum -a 256 -c SHA256SUMS)
+  python3 "${script_dir}/model-bindings-sub2api.py" "${sub2api_args[@]}" --apply
+  log "Sub2API mappings verified. Backup: ${backup_dir}"
+  exit 0
+fi
 
 newapi_mismatches() {
   docker_compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \

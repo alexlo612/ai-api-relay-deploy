@@ -362,14 +362,23 @@ New API 的 Claude channel 仍會自動推斷 OpenAI endpoint；模型資料只�
 
 Sub2API OpenAI 群組負責 Messages dispatch 映射；New API 維持公開模型名、
 channel 和對外計價。New API 的 OpenAI channel 對 `coding-*` 設定
-model mapping，讓 Responses 上游取得真實 GPT-6 型號；Claude channel
-不額外映射版本化別名。別名價格由對應 GPT-6 型號的
+model mapping，讓 Responses 上游取得真實 GPT-6 型號；Sub2API 只保留
+版本化 `claude-*` 的 Messages exact mappings，不重複保存 `coding-*`。
+Claude channel 不額外映射版本化別名。別名價格由對應 GPT-6 型號的
 `ModelRatio`、`CompletionRatio`、快取倍率、`billing_mode` 與
 `billing_expr` 複製而來作為起始值；不以 Anthropic 官方價格計價。
 套用腳本不會覆寫或補回版本化 Claude 名稱的計價欄位；若要建立新名稱，
 須先在 New API 設好計費。刻意移除 `ModelRatio`、`CompletionRatio` 等
 舊倍率而改用 `tiered_expr` 時，套用腳本亦會保留這些缺值。`coding-*`
 則持續與其 GPT-6 上游目標同步價格。
+
+這是目前已驗證的分工，不是 New API 無法替 Claude channel 做 model
+mapping。New API 的 Claude 請求處理器也會先套用其 channel mapping；
+若將三個版本化名稱改在 New API 映射，Sub2API 收到的 Messages request
+將是 GPT-6 型號，現有的 Messages exact mappings 便不再使用。改動前應
+另行驗證 Sub2API 帳號選路、Anthropic 格式回應的 model 名稱、工具呼叫、
+串流、快取及兩層計價。現有 `coding-*` 已由 New API 先映射，故不需要
+Sub2API 重複保存其 exact mappings。
 
 2026-09-25 VPS 上的 New API `tiered_expr` 快照（USD / 百萬 token）：
 
@@ -391,6 +400,15 @@ model mapping，讓 Responses 上游取得真實 GPT-6 型號；Claude channel
 make model-bindings-check
 make model-bindings-apply
 ```
+
+只修改 Sub2API 的 Messages exact mappings、保留 New API 目前所有手動設定時：
+
+```bash
+make model-bindings-sub2api-apply
+```
+
+此命令只備份 Sub2API 資料庫並更新其群組；不改動 New API，也不重啟
+New API。`model-bindings-check` 仍會獨立列出 New API 與 repo 目標的差異。
 
 套用命令會在忽略 Git 的 `backups/model-bindings-*/` 建立兩份 PostgreSQL
 dump 和 SHA-256 checksum，更新 New API channel、能力及計價後短暫重啟該服務，
