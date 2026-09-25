@@ -30,4 +30,6 @@ config/nginx/rendered/
 *.sql
 !scripts/model-bindings-newapi.sql
 !scripts/model-bindings-newapi-check.sql
+!scripts/*.sql
+!tests/*.sql
 *.dump

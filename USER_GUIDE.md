@@ -356,7 +356,8 @@ Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
 New API 的 Claude channel 仍會自動推斷 OpenAI endpoint；模型資料只能
 增加顯示的端點，不能從 channel 移除能力或禁止 OpenAI 請求。
 舊的未版本化
-`claude-fable`、`claude-opus`、`claude-sonnet` 會在套用時移除。
+`claude-fable`、`claude-opus`、`claude-sonnet` 不再支援。若曾從上游重新
+抓取並加入 New API 的 channel，應執行下述定點清理命令。
 日後更新實際上游時，須審核新的模型價格與能力，再修改同一個 JSON
 並重新執行檢查及套用；不會因 Anthropic 發布新版而自動變更。
 
@@ -407,8 +408,21 @@ make model-bindings-apply
 make model-bindings-sub2api-apply
 ```
 
-此命令只備份 Sub2API 資料庫並更新其群組；不改動 New API，也不重啟
-New API。`model-bindings-check` 仍會獨立列出 New API 與 repo 目標的差異。
+上述 Sub2API 專用命令只備份 Sub2API 資料庫並更新其群組；不改動 New API，
+也不重啟 New API。`model-bindings-check` 仍會獨立列出 New API 與 repo
+目標的差異。
+
+只清除兩層 relay 中三個不再支援的舊短名稱、保留其他模型及手動計價時：
+
+```bash
+make model-bindings-prune-legacy
+```
+
+此命令檢查 New API 的 channel、ability、模型 metadata 與相關計價鍵，
+以及 Sub2API 帳號的 `model_mapping`。有舊名稱時先備份相應的
+PostgreSQL 資料庫並校驗 SHA-256，交易式移除，再重啟有變更的服務更新
+快取。重複執行不會重啟服務或更動資料。先清理 Sub2API 的來源，
+往後 New API 重新抓取該 channel 模型時也不會再次帶回這三個名稱。
 
 套用命令會在忽略 Git 的 `backups/model-bindings-*/` 建立兩份 PostgreSQL
 dump 和 SHA-256 checksum，更新 New API channel、能力及計價後短暫重啟該服務，
