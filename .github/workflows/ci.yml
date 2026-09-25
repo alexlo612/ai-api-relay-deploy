@@ -37,7 +37,7 @@ jobs:
               'change-me-sub2api-postgres-password': 'y' * 40,
               'change-me-newapi-postgres-password': 'z' * 40,
               'change-me-redis-password': 'r' * 40,
-              'change-me-sub2api-admin-password': 'a' * 40,
+              'change-me-sub2api-admin-password': 'ci-admin-pass',
               'change-me-sub2api-jwt-secret-32-bytes-minimum': 'j' * 48,
               'change-me-sub2api-totp-key-32-bytes-minimum': 't' * 48,
               'change-me-new-api-session-secret-32-bytes-minimum': 's' * 48,
