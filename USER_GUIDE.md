@@ -52,6 +52,8 @@ df -h
 - Redis：Sub2API 使用 DB 0；New API 使用 DB 1。
 
 PostgreSQL 與 Redis 不 publish host port。
+Redis 的設定來源是 `config/redis/redis.conf.template`；`make render` 會
+產生被 Git 忽略的 `config/redis/redis.conf` 供 Compose 掛載。
 
 ## 4. 首次安裝
 
@@ -326,7 +328,7 @@ New API 的 Redis token 快取可能短暫保留舊狀態；已停用帳號仍�
 New API 的系統設定／倍率設定有「同步上游倍率」，可比較上游
 `/api/ratio_config`、`/api/pricing`、OpenRouter 及內建 `models.dev` 價格預設。
 它能提供新模型價格候選值，但不是 OpenAI、Anthropic 官方價格的保證，
-也不能推斷 `claude-opus` 等自訂別名對應哪個實際上游型號。
+也不能推斷自訂別名對應哪個實際上游型號。
 不要未經審核就批量覆寫既有 `tiered_expr` 計費。
 新模型上線時，先確認渠道路由、實際上游型號及官方輸入／輸出／快取價格，
 再預覽同步差異或在管理介面設定計費，最後執行 `make newapi-audit`。
@@ -336,3 +338,29 @@ Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
 依朋友的使用需求設定明確額度與期限，避免憑證外洩後產生無上限費用；
 管理員自己的 token 亦應分用途建立、定期撤銷。不要在未決定每人預算前
 任意套用同一額度。
+
+## 14. 手動管理模型與計價
+
+模型路由與價格由兩個管理介面維護，倉庫不再同步或強制套用模型別名。
+Sub2API 管理上游帳號可用的實際模型及 Messages dispatch 映射；
+New API 管理對外 channel、別名、model mapping 與使用者計價。
+請以兩個管理介面的現值為準，不把文件中的型號或舊價格當作設定來源。
+
+新模型上線或切換別名時：
+
+1. 在 VPS 執行 `make backup`，確認備份成功；核對新模型的實際 ID、
+   帳號可用性、端點能力及官方輸入、輸出、快取價格。
+2. 在 Sub2API 帳號設定實際模型；若 Claude Code 走 Messages dispatch，
+   檢查群組的 exact mappings。移除不再使用的帳號別名，以免 New API
+   從 Sub2API `/v1/models` 抓取時重新加入舊名稱。
+3. 在 New API 設定對外 channel 模型清單與 model mapping，逐一核對
+   `coding-*`、版本化 `claude-*` 的目標。保留既有公開名稱時，客戶端
+   不需修改模型設定；改公開名稱則須同步更新客戶端。
+4. 在 New API 明確設定各公開名稱的計價，特別是自訂 `tiered_expr`、
+   長上下文及快取倍率；不要直接批量套用上游預設價格。
+5. 以 `/v1/responses`、`/v1/messages` 的實際請求測試路由與工具呼叫，
+   核對 `/v1/models`、`/api/pricing` 和 usage log 的扣額，最後執行
+   `make newapi-audit` 與 `make health`。出錯時依備份及變更紀錄手動回退。
+
+`claude-fable`、`claude-opus`、`claude-sonnet` 三個未版本化舊名稱已停止
+支援；不要再將它們加入 Sub2API 帳號或 New API channel。

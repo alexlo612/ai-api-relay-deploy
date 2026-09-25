@@ -1,4 +1,0 @@
-# Optional Sub2API application config placeholder.
-# Prefer environment variables in compose.yaml for deployment-level settings.
-# Add upstream-supported settings here only when they cannot be expressed safely
-# through environment variables.
