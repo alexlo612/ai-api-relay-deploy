@@ -20,13 +20,19 @@ require_var() {
   fi
 }
 
-require_secret() {
+require_configured_secret() {
   local name="$1"
   local value="${!name:-}"
   require_var "${name}"
   if is_placeholder "${value}"; then
     error "${name} still contains a placeholder; run make init or set a strong value."
   fi
+}
+
+require_secret() {
+  local name="$1"
+  local value="${!name:-}"
+  require_configured_secret "${name}"
   if (( ${#value} < 24 )); then
     error "${name} should be at least 24 characters."
   fi
@@ -80,9 +86,10 @@ for name in POSTGRES_DB POSTGRES_USER SUB2API_POSTGRES_DB SUB2API_POSTGRES_USER 
   require_var "${name}"
 done
 
-for name in POSTGRES_PASSWORD SUB2API_POSTGRES_PASSWORD NEW_API_POSTGRES_PASSWORD REDIS_PASSWORD SUB2API_ADMIN_PASSWORD SUB2API_JWT_SECRET SUB2API_TOTP_ENCRYPTION_KEY NEW_API_SESSION_SECRET NEW_API_CRYPTO_SECRET; do
+for name in POSTGRES_PASSWORD SUB2API_POSTGRES_PASSWORD NEW_API_POSTGRES_PASSWORD REDIS_PASSWORD SUB2API_JWT_SECRET SUB2API_TOTP_ENCRYPTION_KEY NEW_API_SESSION_SECRET NEW_API_CRYPTO_SECRET; do
   require_secret "${name}"
 done
+require_configured_secret SUB2API_ADMIN_PASSWORD
 
 for name in SUB2API_REDIS_DB NEW_API_REDIS_DB SUB2API_DB_MAX_OPEN_CONNS SUB2API_DB_MAX_IDLE_CONNS REDIS_POOL_SIZE REDIS_MIN_IDLE_CONNS BACKUP_RETENTION_DAYS HEALTH_PUBLIC_TIMEOUT_SECONDS CERTBOT_RENEW_INTERVAL_HOURS; do
   require_int "${name}"

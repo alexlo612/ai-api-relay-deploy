@@ -166,7 +166,8 @@ docker run --rm \
 - Keep `.env` mode `0600`; it contains passwords and secrets.
 - Never commit `.env`, private keys, certificates, database dumps, backups, or production logs.
 - Prefer Hetzner Firewall or UFW allowlists for SSH and IP-mode management ports.
-- Application admin passwords and secrets should be at least 32 bytes of randomness.
+- Generate strong random passwords and secrets for new deployments. An existing
+  Sub2API admin password is not rejected solely for its length.
 - TLS certificates can be reissued and are not the most critical backup asset; database and app volumes are.
 
 ## License

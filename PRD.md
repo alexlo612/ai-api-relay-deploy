@@ -382,7 +382,8 @@ flowchart TD
 - PostgreSQL、Redis、Sub2API、New API 僅存在於 internal network。
 - Secret 不可出現在 Git history、README 範例、Nginx access log 或健康檢查輸出。
 - `.env` 建議權限為 `0600`。
-- 所有管理員密碼與 secret 至少使用 32-byte 隨機值。
+- 首次部署時生成強隨機的管理員密碼與 secret；既有 Sub2API 管理員密碼
+  不因部署腳本的任意長度門檻而拒絕，但不可為空值或範例 placeholder。
 - 容器應使用 `security_opt: no-new-privileges:true`，前提是上游映像相容。
 - 可行時設定 `read_only: true`，並為必要路徑提供 volume 或 tmpfs。
 - 禁止以 `privileged: true` 啟動任何服務。
