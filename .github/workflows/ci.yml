@@ -48,6 +48,8 @@ jobs:
           p.write_text(s)
           PY
           ./scripts/render-config.sh bootstrap
+          grep -qx 'maxmemory 256mb' config/redis/redis.conf
+          git diff --exit-code
 
       - name: Validate environment
         run: ./scripts/validate-env.sh

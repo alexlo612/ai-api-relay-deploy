@@ -52,6 +52,8 @@ df -h
 - Redis：Sub2API 使用 DB 0；New API 使用 DB 1。
 
 PostgreSQL 與 Redis 不 publish host port。
+Redis 的設定來源是 `config/redis/redis.conf.template`；`make render` 會
+產生被 Git 忽略的 `config/redis/redis.conf` 供 Compose 掛載。
 
 ## 4. 首次安裝
 

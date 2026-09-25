@@ -274,8 +274,7 @@ flowchart TD
 - `.env`：本機實際設定，必須由 `.gitignore` 排除。
 - `config/nginx/`：Nginx 模板及共用片段。
 - `config/postgres/`：PostgreSQL tuning 設定。
-- `config/redis/`：Redis 設定。
-- 可選 `config/sub2api/config.yaml.example`。
+- `config/redis/redis.conf.template`：Redis 設定來源；render 後的 `redis.conf` 不納入版本控制。
 
 `.env.example` 至少包含：
 
@@ -446,10 +445,8 @@ flowchart TD
 │   │       └── tls.conf
 │   ├── postgres/
 │   │   └── postgresql.conf
-│   ├── redis/
-│   │   └── redis.conf.template
-│   └── sub2api/
-│       └── config.yaml.example
+│   └── redis/
+│       └── redis.conf.template
 ├── postgres/
 │   └── init/
 │       └── 01-create-databases.sh
