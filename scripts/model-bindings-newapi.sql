@@ -34,6 +34,16 @@ BEGIN
         RAISE EXCEPTION 'A GPT-6 target has a fixed price; review billing mode first';
     END IF;
     IF EXISTS (
+        SELECT 1 FROM desired_model_bindings b
+        CROSS JOIN (VALUES ('billing_setting.billing_mode'),
+                           ('billing_setting.billing_expr')) AS required(key)
+        LEFT JOIN options o ON o.key = required.key
+        WHERE b.alias LIKE 'claude-%'
+          AND (o.key IS NULL OR NOT (o.value::jsonb ? b.alias))
+    ) THEN
+        RAISE EXCEPTION 'Configure explicit Claude alias billing before applying';
+    END IF;
+    IF EXISTS (
         SELECT 1 FROM channels c, model_plan p,
              jsonb_each_text(p.doc -> 'aliases') b
         WHERE c.id NOT IN (6, 8)
@@ -66,17 +76,27 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'An OpenAI channel model mapping conflicts with the desired target';
     END IF;
+    IF EXISTS (
+        SELECT 1 FROM models m JOIN desired_model_bindings b ON m.model_name = b.alias
+        WHERE b.alias LIKE 'coding-%' AND m.deleted_at IS NULL
+          AND (m.name_rule <> 0 OR (coalesce(nullif(m.endpoints, ''), '{}')::jsonb ? 'anthropic'
+               AND coalesce(nullif(m.endpoints, ''), '{}')::jsonb -> 'anthropic'
+                   <> '{"path":"/v1/messages","method":"POST"}'::jsonb))
+    ) THEN
+        RAISE EXCEPTION 'A coding model metadata rule or Anthropic endpoint differs from the expected value';
+    END IF;
 END $$;
 
 WITH replacements AS (
     SELECT o.key,
            (o.value::jsonb - ARRAY(SELECT key FROM model_plan,
                                     jsonb_each_text(doc -> 'legacy_aliases'))
-                            - ARRAY(SELECT alias FROM desired_model_bindings))
+                            - ARRAY(SELECT alias FROM desired_model_bindings
+                                    WHERE alias LIKE 'coding-%'))
            || COALESCE((
                SELECT jsonb_object_agg(b.alias, o.value::jsonb -> b.target)
                FROM desired_model_bindings b
-               WHERE o.value::jsonb ? b.target
+               WHERE b.alias LIKE 'coding-%' AND o.value::jsonb ? b.target
            ), '{}'::jsonb) AS new_value
     FROM options o
     WHERE o.key IN (
@@ -127,5 +147,26 @@ SELECT c."group", b.alias, c.id, true, c.priority, c.weight, c.tag
 FROM channels c CROSS JOIN desired_model_bindings b
 WHERE (c.id = 6 AND b.alias LIKE 'coding-%')
    OR (c.id = 8 AND b.alias LIKE 'claude-%');
+
+INSERT INTO models (model_name, endpoints, status, sync_official,
+                    created_time, updated_time, name_rule)
+SELECT b.alias, '{"anthropic":{"path":"/v1/messages","method":"POST"}}',
+       1, 0, extract(epoch FROM now())::bigint, extract(epoch FROM now())::bigint, 0
+FROM desired_model_bindings b
+WHERE b.alias LIKE 'coding-%'
+  AND NOT EXISTS (SELECT 1 FROM models m
+                  WHERE m.model_name = b.alias AND m.deleted_at IS NULL);
+
+UPDATE models m
+SET endpoints = (coalesce(nullif(m.endpoints, ''), '{}')::jsonb ||
+                '{"anthropic":{"path":"/v1/messages","method":"POST"}}'::jsonb)::text,
+    updated_time = extract(epoch FROM now())::bigint
+FROM desired_model_bindings b
+WHERE m.model_name = b.alias AND b.alias LIKE 'coding-%' AND m.deleted_at IS NULL
+  AND NOT (coalesce(nullif(m.endpoints, ''), '{}')::jsonb ? 'anthropic');
+
+DELETE FROM models m USING model_plan p
+WHERE m.deleted_at IS NULL AND m.name_rule = 0
+  AND p.doc -> 'legacy_aliases' ? m.model_name;
 
 COMMIT;

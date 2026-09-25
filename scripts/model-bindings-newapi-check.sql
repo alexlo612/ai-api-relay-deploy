@@ -27,7 +27,7 @@ expected_channels AS (
 ),
 pricing AS (
     SELECT count(*) AS n FROM bindings b CROSS JOIN options o
-    WHERE o.key IN (
+    WHERE b.alias LIKE 'coding-%' AND o.key IN (
         'ModelRatio', 'CompletionRatio', 'CacheRatio', 'CreateCacheRatio',
         'ImageRatio', 'AudioRatio', 'AudioCompletionRatio', 'ModelPrice',
         'billing_setting.billing_mode', 'billing_setting.billing_expr'
@@ -67,6 +67,22 @@ abilities_diff AS (
             AND p.doc -> 'aliases' ? a.model)
         OR (a.channel_id = 8 AND a.model LIKE 'coding-%'
             AND p.doc -> 'aliases' ? a.model))
+), metadata_diff AS (
+    SELECT count(*) AS n FROM bindings b
+    WHERE b.alias LIKE 'coding-%'
+      AND NOT EXISTS (
+          SELECT 1 FROM models m WHERE m.model_name = b.alias
+            AND m.deleted_at IS NULL AND m.name_rule = 0
+            AND coalesce(nullif(m.endpoints, ''), '{}')::jsonb -> 'anthropic'
+                = '{"path":"/v1/messages","method":"POST"}'::jsonb
+      )
+), old_metadata AS (
+    SELECT count(*) AS n FROM models m CROSS JOIN plan p
+    WHERE m.deleted_at IS NULL AND m.name_rule = 0
+      AND p.doc -> 'legacy_aliases' ? m.model_name
 )
-SELECT pricing.n + old_pricing.n + channels_diff.n + abilities_diff.n + old_abilities.n
-FROM pricing, old_pricing, channels_diff, abilities_diff, old_abilities;
+SELECT pricing.n + old_pricing.n
+     + channels_diff.n + abilities_diff.n + old_abilities.n
+     + metadata_diff.n + old_metadata.n
+FROM pricing, old_pricing, channels_diff,
+     abilities_diff, old_abilities, metadata_diff, old_metadata;

@@ -350,7 +350,11 @@ Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
 `claude-*` 是與 Anthropic 模型 ID 同名的**相容別名**，不是 Anthropic
 服務或其計價。Claude Code 使用 New API 的 Messages endpoint，Codex
 使用 New API 的 Responses endpoint。`coding-*` 已在兩種 API endpoint
-以非串流短請求測通；Claude Code 的模型設定仍建議使用版本化名稱。
+以非串流短請求測通；New API 的模型資料額外標示 Anthropic endpoint，
+因此價格頁會列 `anthropic, openai`。Claude Code 的模型設定仍建議使用
+版本化名稱。版本化 `claude-*` 雖然在模型資料只設定 Anthropic endpoint，
+New API 的 Claude channel 仍會自動推斷 OpenAI endpoint；模型資料只能
+增加顯示的端點，不能從 channel 移除能力或禁止 OpenAI 請求。
 舊的未版本化
 `claude-fable`、`claude-opus`、`claude-sonnet` 會在套用時移除。
 日後更新實際上游時，須審核新的模型價格與能力，再修改同一個 JSON
@@ -361,7 +365,11 @@ channel 和對外計價。New API 的 OpenAI channel 對 `coding-*` 設定
 model mapping，讓 Responses 上游取得真實 GPT-6 型號；Claude channel
 不額外映射版本化別名。別名價格由對應 GPT-6 型號的
 `ModelRatio`、`CompletionRatio`、快取倍率、`billing_mode` 與
-`billing_expr` 複製而來；不以 Anthropic 官方價格計價。
+`billing_expr` 複製而來作為起始值；不以 Anthropic 官方價格計價。
+套用腳本不會覆寫或補回版本化 Claude 名稱的計價欄位；若要建立新名稱，
+須先在 New API 設好計費。刻意移除 `ModelRatio`、`CompletionRatio` 等
+舊倍率而改用 `tiered_expr` 時，套用腳本亦會保留這些缺值。`coding-*`
+則持續與其 GPT-6 上游目標同步價格。
 
 2026-09-25 VPS 上的 New API `tiered_expr` 快照（USD / 百萬 token）：
 
@@ -371,10 +379,11 @@ model mapping，讓 Responses 上游取得真實 GPT-6 型號；Claude channel
 | `coding-pro` | 2 / 10 / 0.20 / 2.50 | 4 / 15 / 0.40 / 5 |
 | `coding-max` | 10 / 50 / 1 / 12.50 | 20 / 75 / 2 / 25 |
 
-三個對應的 `claude-*` 名稱使用相同的計費表。這是**目前 relay 的設定**，
-不是 Anthropic 公布的價格，也不保證未來模型價格不變。若修改上游目標，
-先更新其 New API 定價，再重新套用別名；實際扣額可於 New API usage log
-核對，不能僅以 HTTP 200 代表計費正確。
+此表只列出目前 `coding-*` 的設定；對應的版本化 `claude-*` 可能因管理介面
+中手動調整而採用不同倍率或計費公式。以上不是 Anthropic 公布的價格，也
+不保證未來模型價格不變。若修改上游目標，先審核 New API 定價，再重新
+套用別名；實際扣額可於 New API usage log 核對，不能僅以 HTTP 200 代表
+計費正確。
 
 在 VPS 上先檢查，再套用：
 
