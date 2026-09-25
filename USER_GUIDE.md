@@ -157,6 +157,9 @@ make enable-tls
 ./scripts/certbot.sh expiry
 ```
 
+`issue` 會完整驗證 `.env`；`renew` 與唯讀的 `expiry` 不會因無關的應用
+密碼規則而拒絕檢查既有憑證。憑證查詢失敗時，`make health` 會回報失敗。
+
 IP certificate 使用 Certbot 5.4+ 的 `--ip-address` 與 `--preferred-profile shortlived`。若 renewal 成功，script 會先執行 `nginx -t`，再 reload Nginx。
 
 建議在 VPS 上用 cron 或 systemd timer 每 12 小時執行：
