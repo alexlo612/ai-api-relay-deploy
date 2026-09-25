@@ -7,7 +7,7 @@ COMPOSE_BASE := -f compose.yaml
 COMPOSE_DOMAIN := $(shell if [ -f .env ] && grep -q '^DEPLOYMENT_MODE=domain' .env; then printf -- '-f compose.domain.yaml'; fi)
 COMPOSE := docker compose $(COMPOSE_BASE) $(COMPOSE_DOMAIN)
 
-.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render newapi-audit model-bindings-check model-bindings-apply model-bindings-sub2api-apply model-bindings-prune-legacy
+.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render newapi-audit
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; print "AI API Relay deployment commands:"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -44,18 +44,6 @@ health: ## Run full health and diagnostics report
 
 newapi-audit: ## Review New API access and routed-model pricing without secrets
 	@./scripts/newapi-audit.sh
-
-model-bindings-check: ## Compare coding and Claude-compatible aliases with GPT-6 targets
-	@./scripts/model-bindings.sh --check
-
-model-bindings-apply: ## Back up and apply model aliases, routing, and billing
-	@./scripts/model-bindings.sh --apply
-
-model-bindings-sub2api-apply: ## Back up and apply only Sub2API Messages mappings
-	@./scripts/model-bindings.sh --apply-sub2api
-
-model-bindings-prune-legacy: ## Back up and remove unsupported Claude aliases from both relays
-	@./scripts/model-bindings.sh --prune-legacy
 
 logs: ## Follow logs, optionally SERVICE=name
 	@if [ -n "$(SERVICE)" ]; then $(COMPOSE) logs -f --tail=200 "$(SERVICE)"; else $(COMPOSE) logs -f --tail=200; fi

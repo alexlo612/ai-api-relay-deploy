@@ -326,7 +326,7 @@ New API 的 Redis token 快取可能短暫保留舊狀態；已停用帳號仍�
 New API 的系統設定／倍率設定有「同步上游倍率」，可比較上游
 `/api/ratio_config`、`/api/pricing`、OpenRouter 及內建 `models.dev` 價格預設。
 它能提供新模型價格候選值，但不是 OpenAI、Anthropic 官方價格的保證，
-也不能推斷 `claude-opus` 等自訂別名對應哪個實際上游型號。
+也不能推斷自訂別名對應哪個實際上游型號。
 不要未經審核就批量覆寫既有 `tiered_expr` 計費。
 新模型上線時，先確認渠道路由、實際上游型號及官方輸入／輸出／快取價格，
 再預覽同步差異或在管理介面設定計費，最後執行 `make newapi-audit`。
@@ -337,96 +337,28 @@ Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
 管理員自己的 token 亦應分用途建立、定期撤銷。不要在未決定每人預算前
 任意套用同一額度。
 
-## 14. 模型別名與計價
+## 14. 手動管理模型與計價
 
-`config/model-bindings.json` 定義 New API 對外提供的六個入口：
+模型路由與價格由兩個管理介面維護，倉庫不再同步或強制套用模型別名。
+Sub2API 管理上游帳號可用的實際模型及 Messages dispatch 映射；
+New API 管理對外 channel、別名、model mapping 與使用者計價。
+請以兩個管理介面的現值為準，不把文件中的型號或舊價格當作設定來源。
 
-| Claude Code (`/v1/messages`) | 通用 coding 名稱 (`/v1/responses`) | 實際上游 |
-|---|---|---|
-| `claude-sonnet-5` | `coding-fast` | `gpt-6-luna` |
-| `claude-opus-5-5` | `coding-pro` | `gpt-6-sol` |
-| `claude-fable-5-1` | `coding-max` | `gpt-6-astra` |
+新模型上線或切換別名時：
 
-`claude-*` 是與 Anthropic 模型 ID 同名的**相容別名**，不是 Anthropic
-服務或其計價。Claude Code 使用 New API 的 Messages endpoint，Codex
-使用 New API 的 Responses endpoint。`coding-*` 已在兩種 API endpoint
-以非串流短請求測通；New API 的模型資料額外標示 Anthropic endpoint，
-因此價格頁會列 `anthropic, openai`。Claude Code 的模型設定仍建議使用
-版本化名稱。版本化 `claude-*` 雖然在模型資料只設定 Anthropic endpoint，
-New API 的 Claude channel 仍會自動推斷 OpenAI endpoint；模型資料只能
-增加顯示的端點，不能從 channel 移除能力或禁止 OpenAI 請求。
-舊的未版本化
-`claude-fable`、`claude-opus`、`claude-sonnet` 不再支援。若曾從上游重新
-抓取並加入 New API 的 channel，應執行下述定點清理命令。
-日後更新實際上游時，須審核新的模型價格與能力，再修改同一個 JSON
-並重新執行檢查及套用；不會因 Anthropic 發布新版而自動變更。
+1. 在 VPS 執行 `make backup`，確認備份成功；核對新模型的實際 ID、
+   帳號可用性、端點能力及官方輸入、輸出、快取價格。
+2. 在 Sub2API 帳號設定實際模型；若 Claude Code 走 Messages dispatch，
+   檢查群組的 exact mappings。移除不再使用的帳號別名，以免 New API
+   從 Sub2API `/v1/models` 抓取時重新加入舊名稱。
+3. 在 New API 設定對外 channel 模型清單與 model mapping，逐一核對
+   `coding-*`、版本化 `claude-*` 的目標。保留既有公開名稱時，客戶端
+   不需修改模型設定；改公開名稱則須同步更新客戶端。
+4. 在 New API 明確設定各公開名稱的計價，特別是自訂 `tiered_expr`、
+   長上下文及快取倍率；不要直接批量套用上游預設價格。
+5. 以 `/v1/responses`、`/v1/messages` 的實際請求測試路由與工具呼叫，
+   核對 `/v1/models`、`/api/pricing` 和 usage log 的扣額，最後執行
+   `make newapi-audit` 與 `make health`。出錯時依備份及變更紀錄手動回退。
 
-Sub2API OpenAI 群組負責 Messages dispatch 映射；New API 維持公開模型名、
-channel 和對外計價。New API 的 OpenAI channel 對 `coding-*` 設定
-model mapping，讓 Responses 上游取得真實 GPT-6 型號；Sub2API 只保留
-版本化 `claude-*` 的 Messages exact mappings，不重複保存 `coding-*`。
-Claude channel 不額外映射版本化別名。別名價格由對應 GPT-6 型號的
-`ModelRatio`、`CompletionRatio`、快取倍率、`billing_mode` 與
-`billing_expr` 複製而來作為起始值；不以 Anthropic 官方價格計價。
-套用腳本不會覆寫或補回版本化 Claude 名稱的計價欄位；若要建立新名稱，
-須先在 New API 設好計費。刻意移除 `ModelRatio`、`CompletionRatio` 等
-舊倍率而改用 `tiered_expr` 時，套用腳本亦會保留這些缺值。`coding-*`
-則持續與其 GPT-6 上游目標同步價格。
-
-這是目前已驗證的分工，不是 New API 無法替 Claude channel 做 model
-mapping。New API 的 Claude 請求處理器也會先套用其 channel mapping；
-若將三個版本化名稱改在 New API 映射，Sub2API 收到的 Messages request
-將是 GPT-6 型號，現有的 Messages exact mappings 便不再使用。改動前應
-另行驗證 Sub2API 帳號選路、Anthropic 格式回應的 model 名稱、工具呼叫、
-串流、快取及兩層計價。現有 `coding-*` 已由 New API 先映射，故不需要
-Sub2API 重複保存其 exact mappings。
-
-2026-09-25 VPS 上的 New API `tiered_expr` 快照（USD / 百萬 token）：
-
-| 等級 | 不超過 272k：輸入 / 輸出 / 快取讀取 / 快取寫入 | 超過 272k：輸入 / 輸出 / 快取讀取 / 快取寫入 |
-|---|---|---|
-| `coding-fast` | 0.10 / 0.50 / 0.01 / 0.125 | 0.20 / 0.75 / 0.02 / 0.25 |
-| `coding-pro` | 2 / 10 / 0.20 / 2.50 | 4 / 15 / 0.40 / 5 |
-| `coding-max` | 10 / 50 / 1 / 12.50 | 20 / 75 / 2 / 25 |
-
-此表只列出目前 `coding-*` 的設定；對應的版本化 `claude-*` 可能因管理介面
-中手動調整而採用不同倍率或計費公式。以上不是 Anthropic 公布的價格，也
-不保證未來模型價格不變。若修改上游目標，先審核 New API 定價，再重新
-套用別名；實際扣額可於 New API usage log 核對，不能僅以 HTTP 200 代表
-計費正確。
-
-在 VPS 上先檢查，再套用：
-
-```bash
-make model-bindings-check
-make model-bindings-apply
-```
-
-只修改 Sub2API 的 Messages exact mappings、保留 New API 目前所有手動設定時：
-
-```bash
-make model-bindings-sub2api-apply
-```
-
-上述 Sub2API 專用命令只備份 Sub2API 資料庫並更新其群組；不改動 New API，
-也不重啟 New API。`model-bindings-check` 仍會獨立列出 New API 與 repo
-目標的差異。
-
-只清除兩層 relay 中三個不再支援的舊短名稱、保留其他模型及手動計價時：
-
-```bash
-make model-bindings-prune-legacy
-```
-
-此命令檢查 New API 的 channel、ability、模型 metadata 與相關計價鍵，
-以及 Sub2API 帳號的 `model_mapping`。有舊名稱時先備份相應的
-PostgreSQL 資料庫並校驗 SHA-256，交易式移除，再重啟有變更的服務更新
-快取。重複執行不會重啟服務或更動資料。先清理 Sub2API 的來源，
-往後 New API 重新抓取該 channel 模型時也不會再次帶回這三個名稱。
-
-套用命令會在忽略 Git 的 `backups/model-bindings-*/` 建立兩份 PostgreSQL
-dump 和 SHA-256 checksum，更新 New API channel、能力及計價後短暫重啟該服務，
-再透過 Sub2API admin API 更新群組。管理 API key 預設讀取
-`~/.config/ai-api-relay/sub2api-admin-api-key`，也可用
-`SUB2API_ADMIN_API_KEY_FILE` 指定 mode `0600` 的檔案。指令不會輸出 key。
-套用失敗不會自動還原資料；應先檢查狀態和備份，再按還原指南操作。
+`claude-fable`、`claude-opus`、`claude-sonnet` 三個未版本化舊名稱已停止
+支援；不要再將它們加入 Sub2API 帳號或 New API channel。

@@ -28,8 +28,4 @@ config/nginx/rendered/
 *.tar
 *.tar.gz
 *.sql
-!scripts/model-bindings-newapi.sql
-!scripts/model-bindings-newapi-check.sql
-!scripts/*.sql
-!tests/*.sql
 *.dump
