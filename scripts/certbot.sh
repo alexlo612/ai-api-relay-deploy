@@ -83,7 +83,7 @@ renew() {
 }
 
 expiry() {
-  docker_compose run --rm --entrypoint certbot certbot certificates || true
+  docker_compose run --rm --no-deps --entrypoint certbot certbot certificates
 }
 
 main() {
@@ -94,11 +94,11 @@ main() {
   fi
 
   load_env "${repo_root}/.env"
-  "${script_dir}/validate-env.sh"
-  prepare_args
 
   case "${action}" in
     issue)
+      "${script_dir}/validate-env.sh"
+      prepare_args
       if [[ "${DEPLOYMENT_MODE}" == "domain" ]]; then
         issue_domain
       else
