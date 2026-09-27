@@ -13,7 +13,7 @@
 
 兩個 port 都由 Nginx 接收，再代理至 Docker 內部應用。Sub2API 與 New API 容器本身不 publish host port。
 
-IP 模式使用 Let's Encrypt short-lived IP certificate。此類憑證有效期約 6 天，因此至少每 12 小時應執行一次 renewal。建議以 Hetzner Firewall 或 UFW 限制 3000/8080 的來源 IP。
+IP 模式使用 Let's Encrypt short-lived IP certificate。此類憑證有效期約 6 天，因此至少每 12 小時應執行一次 renewal。此 VPS 目前決定在 domain-mode cutover 前將 `3000`/`8080` 對公網開放，並未限制來源 IP；切換時應改為只公開 `80`/`443`，並驗證 IPv4／IPv6 規則。
 
 ### 1.2 Domain 模式
 
@@ -162,11 +162,11 @@ make enable-tls
 
 IP certificate 使用 Certbot 5.4+ 的 `--ip-address` 與 `--preferred-profile shortlived`。若 renewal 成功，script 會先執行 `nginx -t`，再 reload Nginx。
 
-建議在 VPS 上用 cron 或 systemd timer 每 12 小時執行：
-
-```bash
-cd /opt/ai-api-relay && ./scripts/certbot.sh renew >> /var/log/ai-api-relay-certbot.log 2>&1
-```
+Compose 中的 Certbot 服務會每 12 小時自動檢查續期，不需另設主機 cron 或
+systemd timer。不過目前自動 renewal loop 尚未在憑證更新後 reload Nginx，
+此項修正列於 `TODO.md`。在修正完成前，檢查 `make logs SERVICE=certbot`；
+若 Certbot 已自動更新憑證，執行 `./scripts/certbot.sh renew` 以測試 Nginx
+設定並 reload，使 Nginx 載入新憑證。
 
 ## 7. 從 IP 切換至 Domain 模式
 
@@ -244,14 +244,14 @@ TLS certificate 可重新申請，不視為最關鍵備份資料。
 
 ## 10. Firewall
 
-IP 測試模式：
+IP 模式（目前 TCP 3000／8080 對公網開放）：
 
 | Port | 用途 | 建議來源 |
 |---:|---|---|
 | 22 | SSH | 只允許管理員 IP |
 | 80 | ACME challenge | 公開 |
-| 3000 | New API via Nginx | 只允許信任 IP |
-| 8080 | Sub2API via Nginx | 只允許信任 IP |
+| 3000 | New API via Nginx | 目前公開；建議可行時以 provider firewall 限制來源 |
+| 8080 | Sub2API via Nginx | 目前公開；建議可行時以 provider firewall 限制來源 |
 
 Domain 公開模式：
 
@@ -262,6 +262,7 @@ Domain 公開模式：
 | 443 | HTTPS Web/API | 公開 |
 
 PostgreSQL 5432 與 Redis 6379 不可向公網開放。
+IP 模式公開管理介面具有較高暴露風險；使用強密碼及 2FA，並在網域模式切換後關閉 3000／8080。
 
 ## 11. 排錯
 

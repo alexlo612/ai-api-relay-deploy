@@ -44,7 +44,7 @@ Prerequisites on the VPS:
 - Docker Engine 26+ and Docker Compose v2
 - 4 GB RAM, at least 20 GB disk, and recommended 2–4 GB swap
 - Firewall allowing SSH from your admin IP and TCP 80 for ACME challenge
-- For IP test mode, allow TCP 3000 and 8080 only from trusted friend/admin IPs when possible
+- Current IP mode keeps TCP 3000 and 8080 public until the planned domain-mode cutover; domain mode publishes only 80/443
 
 ```bash
 cp .env.example .env
@@ -52,6 +52,12 @@ chmod 600 .env
 nano .env
 make init
 ```
+
+**Security note:** In IP mode, the New API and Sub2API endpoints are reachable from
+the public Internet on ports 3000 and 8080, respectively. This is the current
+owner-approved operating decision, not a source-IP restriction. Use strong
+credentials and 2FA; restrict source IPs at the provider firewall when practical.
+The planned domain-mode cutover closes both ports.
 
 `make init` generates any placeholder secrets without overwriting real values, renders config, validates Compose, starts the stack, and runs diagnostics.
 
@@ -161,11 +167,18 @@ docker run --rm \
 - [Implementation checklist](TODO.md)
 - [Agent instructions](AGENTS.md)
 
+These files support a documentation-driven workflow: update `PRD.md` when scope
+or requirements change, implement and verify against its acceptance criteria,
+track incomplete or deferred work in `TODO.md`, and keep executable operating
+procedures in `USER_GUIDE.md`. `README.md` remains the concise project entry point.
+Whole-VPS architecture and host inventory live in a separate local `vps-infra`
+directory; that directory is not part of this repository.
+
 ## Security notes
 
 - Keep `.env` mode `0600`; it contains passwords and secrets.
 - Never commit `.env`, private keys, certificates, database dumps, backups, or production logs.
-- Prefer Hetzner Firewall or UFW allowlists for SSH and IP-mode management ports.
+- Keep SSH restricted to the administrator's source IP. At domain-mode cutover, close public 3000/8080 and verify the named HTTPS routes on 443.
 - Generate strong random passwords and secrets for new deployments. An existing
   Sub2API admin password is not rejected solely for its length.
 - TLS certificates can be reissued and are not the most critical backup asset; database and app volumes are.

@@ -2,8 +2,8 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 文件版本 | v0.1 Draft |
-| 日期 | 2026-06-25 |
+| 文件版本 | v0.2 現行需求基準 |
+| 日期 | 2026-09-27 |
 | 目標平台 | Hetzner VPS，4 GB RAM，Linux x86_64 |
 | 部署方式 | Docker Engine + Docker Compose |
 | 核心服務 | Sub2API、New API、Nginx、Certbot、PostgreSQL、Redis |
@@ -19,6 +19,10 @@
 系統須提供 HTTPS、反向代理、持久化儲存、健康檢查、服務啟動順序、備份與容易修改的設定檔。除首次填寫環境變數及設定 DNS 外，部署流程應盡量自動化。
 
 本專案是「部署與維運倉庫」，不修改 Sub2API 或 New API 的上游應用程式原始碼。
+
+本文件定義產品需求與驗收基準。實作狀態與未完成事項記錄於 `TODO.md`，
+操作程序以 `USER_GUIDE.md` 為準。若實際部署與本文件不同，應先記錄並審核
+差異，再更新規格或部署；不以過期快照取代本文件。
 
 ## 2. 產品目標
 
@@ -72,12 +76,13 @@
 
 ## 5. 前提與預設決策
 
-以下為 v0.1 採用的預設方案：
+以下為現行需求基準採用的方案：
 
 - 作業系統：Ubuntu 24.04 LTS 或 Debian 12。
 - CPU 架構：`linux/amd64`。
 - 部署分為兩種模式：
-  - `ip`：初期共享測試，以 VPS IP 加不同 port 存取。
+  - `ip`：目前使用 VPS IP 加不同 port 存取；依擁有者決策，網域切換前 TCP
+    3000 與 8080 對公網開放。
   - `domain`：日後正式公開，以兩個子網域及 HTTPS 存取。
 - `ip` 模式入口：
   - Sub2API：`https://VPS_IP:8080`
@@ -86,13 +91,14 @@
   - `https://sub2api.example.com`
   - `https://newapi.example.com`
 - `ip` 模式由 Nginx 公開 TCP 80、3000、8080；`domain` 模式只公開 TCP 80、443。
+- `ip` 模式的 TCP 3000、8080 目前不限制來源 IP。此為已確認的營運決策，
+  代表管理介面和 API 可從公網連線；使用強密碼與 2FA，並在網域切換時關閉這兩個 port。
 - Sub2API 與 New API 共用一個 PostgreSQL 容器，但使用不同 database 與帳號。
 - 兩個應用共用一個 Redis 容器，但使用不同 Redis DB index。
 - Nginx 在兩種模式均負責反向代理、串流回應及基本安全標頭；在 `domain` 模式額外負責 TLS termination。
 - Certbot 在兩種模式均啟用，並使用 HTTP-01 challenge；IP 模式使用 short-lived IP certificate。
 - 所有上游映像版本由 `.env` 鎖定，不直接硬編碼為 `latest`。
 - 日誌預設使用 Docker `json-file` rotation，不部署額外日誌平台。
-- 備份只需保存在 VPS 本機；首版不整合 Hetzner Storage Box 或 S3。
 
 ## 6. 系統架構
 
@@ -338,7 +344,8 @@ flowchart TD
   - 還原前要求輸入確認，或使用明確 `--yes` 參數。
   - 在還原前驗證 checksum。
   - 清楚記錄應停止哪些應用容器。
-- 首版不要求整合或說明 Hetzner Storage Box、S3 等異地備份。
+- 首版只要求在 VPS 建立並驗證本機備份；不要求整合 Hetzner Storage Box、
+  S3 等異地備份。加密異地備份屬後續韌性強化，不作為首版驗收阻擋項。
 - TLS 憑證可重新申請，不應視為唯一不可替代的備份資料。
 
 ### FR-12：更新與回滾
@@ -389,6 +396,8 @@ flowchart TD
 - 禁止以 `privileged: true` 啟動任何服務。
 - 不掛載 Docker socket。
 - README 必須包含 UFW 或 Hetzner Firewall 規則。
+- 目前 IP 模式依擁有者決策公開 TCP 3000、8080；文件必須清楚標示此公開範圍及風險。
+  若用途改變，應先由擁有者核准來源 IP 限制或提早切換網域模式。
 - 建議管理 UI 額外採用 IP allowlist、VPN 或 Nginx Basic Auth；API 路徑不得被意外阻擋。
 - 管理員首次登入後應啟用 2FA（如上游應用支援）。
 
@@ -471,17 +480,17 @@ flowchart TD
 
 Nginx 不需連接 `backend`，應只透過 `edge` 存取應用。PostgreSQL 與 Redis 只連接 `backend`。
 
-主機端口：
+主機端口依部署模式：
 
-| Port | 用途 | 公網開放 |
-|---:|---|---|
-| 22 | SSH | 是，建議限制來源 IP |
-| 80 | ACME challenge、HTTPS redirect | 是 |
-| 443 | Web 與 API HTTPS | 是 |
-| 3000 | New API | 否 |
-| 5432 | PostgreSQL | 否 |
-| 6379 | Redis | 否 |
-| 8080 | Sub2API | 否 |
+| Port | 用途 | IP 模式 | Domain 模式 |
+|---:|---|---|---|
+| 22 | SSH | 開放，限制管理員來源 IP | 開放，限制管理員來源 IP |
+| 80 | ACME challenge、HTTPS redirect | 公開 | 公開 |
+| 443 | Web 與 API HTTPS | 不使用 | 公開 |
+| 3000 | New API via Nginx | 目前依營運決策公開 | 關閉 |
+| 5432 | PostgreSQL | 關閉 | 關閉 |
+| 6379 | Redis | 關閉 | 關閉 |
+| 8080 | Sub2API via Nginx | 目前依營運決策公開 | 關閉 |
 
 ## 11. 設定與 Secret 管理
 
@@ -608,7 +617,7 @@ README 必須記錄每個設定的最終來源，避免同一項目同時在 Com
 | 日誌或備份耗盡磁碟 | 服務中斷 | log rotation、備份 retention、磁碟用量檢查 |
 | 管理介面直接公開 | 暴力破解 | 強密碼、2FA、IP allowlist/VPN/Basic Auth |
 
-## 17. 開放問題
+## 17. 已確認與仍待決策
 
 已確認：
 
@@ -621,37 +630,13 @@ README 必須記錄每個設定的最終來源，避免同一項目同時在 Com
 仍可在實作或上線前調整：
 
 1. 預計同時在線使用者與每分鐘 API 請求量。（暫按低至中量）
-2. IP 測試模式允許連線的朋友 IP 清單。（建議以 Hetzner Firewall 限制）
+2. IP 模式已確認暫時公開 TCP 3000、8080；若需限縮朋友可連線的來源 IP，
+   應更新營運決策及防火牆設定。
 3. 時區採 UTC、Asia/Hong_Kong 或其他。（預設 Asia/Hong_Kong）
 4. 是否需要 SMTP、OAuth、支付或公開註冊功能。（預設不配置）
-5. 是否在 GitHub Actions 加入 Compose、ShellCheck、YAML 與 secret scanning。（預設加入）
+5. GitHub Actions 執行 Compose、ShellCheck、YAML 與 secret scanning。
 
-## 18. 實作里程碑
-
-### M1：基礎 Compose
-
-- 建立 repo 結構。
-- 完成 PostgreSQL、Redis、Sub2API、New API。
-- 完成 volumes、networks、healthchecks 與資源限制。
-
-### M2：Nginx 與 TLS
-
-- 完成雙網域反向代理。
-- 完成 bootstrap HTTP config。
-- 完成 Certbot 首次申請、續期與 Nginx reload。
-
-### M3：維運工具
-
-- 完成環境驗證、健康檢查、備份、還原、更新與回滾 scripts。
-- 完成 Makefile。
-
-### M4：文件與 CI
-
-- 完成 README。
-- 加入 GitHub Actions 靜態驗證。
-- 執行全新 VPS 部署與 4 GB RAM 驗收。
-
-## 19. 上游參考
+## 18. 上游參考
 
 - Sub2API 官方倉庫：<https://github.com/Wei-Shaw/sub2api>
 - Sub2API 官方 Docker Compose 範例：<https://github.com/Wei-Shaw/sub2api/blob/main/deploy/docker-compose.local.yml>
