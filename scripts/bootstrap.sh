@@ -9,6 +9,9 @@ replace_env_value() {
   local key="$1"
   local value="$2"
   local env_file="${repo_root}/.env"
+  if [[ -L "${env_file}" ]]; then
+    env_file="$(readlink -f "${env_file}")"
+  fi
   local escaped
   escaped="$(printf '%s' "${value}" | sed 's/[&\\]/\\&/g')"
   if grep -q "^${key}=" "${env_file}"; then
@@ -17,6 +20,7 @@ replace_env_value() {
   else
     printf '%s=%s\n' "${key}" "${value}" >> "${env_file}"
   fi
+  chmod 600 "${env_file}"
 }
 
 generate_secret_if_needed() {
@@ -53,17 +57,13 @@ main() {
 
   load_env "${repo_root}/.env"
   "${script_dir}/validate-env.sh"
-  "${script_dir}/render-config.sh" bootstrap
   docker_compose config >/dev/null
 
-  log "Starting data and application services."
-  docker_compose up -d postgres redis sub2api new-api
+  log "Starting application and data services on vps-infra_ingress."
+  docker_compose up -d --wait --wait-timeout 180 --remove-orphans
 
-  log "Starting HTTP-only bootstrap Nginx for ACME challenge."
-  docker_compose up -d --no-deps nginx
-
-  log "Bootstrap completed for ${DEPLOYMENT_MODE} mode. Issue certificates with: make enable-tls"
-  "${script_dir}/healthcheck.sh" || warn "Initial health check reported issues; this is expected until certificates and public endpoints are ready. Inspect with make logs SERVICE=<name>."
+  log "Bootstrap completed. Shared ingress TLS and hostname routes are managed by vps-infra."
+  "${script_dir}/healthcheck.sh" || warn "Full health check reported issues. Inspect service logs and the shared ingress with make logs SERVICE=<name>."
 }
 
 main "$@"

@@ -9,7 +9,6 @@ main() {
   require_command docker
   load_env "${repo_root}/.env"
   "${script_dir}/validate-env.sh"
-  "${script_dir}/render-config.sh" "${DEPLOYMENT_MODE}"
 
   log "Creating backup before update."
   "${script_dir}/backup.sh"
@@ -18,7 +17,7 @@ main() {
   docker_compose pull
 
   log "Recreating changed containers."
-  docker_compose up -d
+  docker_compose up -d --wait --wait-timeout 180 --remove-orphans
 
   log "Running health check."
   "${script_dir}/healthcheck.sh"

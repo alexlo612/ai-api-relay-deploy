@@ -21,9 +21,6 @@ new_api_data/
 new_api_logs/
 letsencrypt/
 acme-webroot/
-config/nginx/rendered/
-config/redis/redis.conf
-
 *.log
 *.pid
 *.tar

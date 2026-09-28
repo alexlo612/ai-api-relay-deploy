@@ -60,19 +60,21 @@ tar -C "${workdir}" -xzf "${file}"
 backup_root="$(find "${workdir}" -maxdepth 1 -type d -name 'backup-*' | head -n 1)"
 [[ -n "${backup_root}" ]] || fail "Backup archive does not contain backup-* directory."
 
-log "Stopping applications for consistent restore."
-docker_compose stop nginx sub2api new-api
+log "Stopping applications and Redis for a consistent restore."
+docker_compose stop sub2api new-api redis
 
 sub2api_volume="$(compose_volume_name sub2api_data)"
 new_api_volume="$(compose_volume_name new_api_data)"
 new_api_logs_volume="$(compose_volume_name new_api_logs)"
+redis_volume="$(compose_volume_name redis_data)"
 log "Restoring application data volumes."
 docker run --rm \
   -v "${sub2api_volume}:/restore/sub2api" \
   -v "${new_api_volume}:/restore/new_api" \
   -v "${new_api_logs_volume}:/restore/new_api_logs" \
+  -v "${redis_volume}:/restore/redis" \
   -v "${backup_root}/volumes:/backup:ro" \
-  alpine:3.22 sh -c 'set -e; find /restore/sub2api /restore/new_api /restore/new_api_logs -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -xzf /backup/app-data.tar.gz -C /restore'
+  alpine:3.22 sh -c 'set -e; find /restore/sub2api /restore/new_api /restore/new_api_logs /restore/redis -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -xzf /backup/app-data.tar.gz -C /restore'
 
 log "Restoring PostgreSQL databases."
 docker_compose up -d postgres

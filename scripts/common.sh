@@ -26,9 +26,6 @@ require_command() {
 
 compose_files() {
   printf -- '-f\n%s\n' "${repo_root}/compose.yaml"
-  if [[ "${DEPLOYMENT_MODE:-ip}" == "domain" ]]; then
-    printf -- '-f\n%s\n' "${repo_root}/compose.domain.yaml"
-  fi
 }
 
 docker_compose() {
@@ -57,39 +54,6 @@ is_placeholder() {
   [[ "${value}" == *your-domain.com* ]] && return 0
   [[ "${value}" == admin@example.com ]] && return 0
   return 1
-}
-
-render_template() {
-  local source="$1"
-  local target="$2"
-  # Keep this list literal so envsubst replaces only deployment placeholders,
-  # not Nginx runtime variables such as $host and $remote_addr.
-  local variables
-  # shellcheck disable=SC2016
-  variables='${REDIS_MAXMEMORY} ${REQUEST_BODY_SIZE} ${PROXY_READ_TIMEOUT} ${PROXY_SEND_TIMEOUT} ${SERVER_PUBLIC_IP} ${IP_CERT_NAME} ${SUB2API_DOMAIN} ${NEW_API_DOMAIN} ${DOMAIN_CERT_NAME}'
-  if command -v envsubst >/dev/null 2>&1; then
-    envsubst "${variables}" < "${source}" > "${target}"
-    return
-  fi
-  require_command python3
-  SOURCE_PATH="${source}" TARGET_PATH="${target}" python3 - <<'PY'
-import os
-import re
-from pathlib import Path
-
-source = Path(os.environ["SOURCE_PATH"])
-target = Path(os.environ["TARGET_PATH"])
-pattern = re.compile(r"\$\{(REDIS_MAXMEMORY|REQUEST_BODY_SIZE|PROXY_READ_TIMEOUT|PROXY_SEND_TIMEOUT|SERVER_PUBLIC_IP|IP_CERT_NAME|SUB2API_DOMAIN|NEW_API_DOMAIN|DOMAIN_CERT_NAME)\}")
-
-def repl(match):
-    return os.environ.get(match.group(1), match.group(0))
-
-target.write_text(pattern.sub(repl, source.read_text()))
-PY
-}
-
-redact() {
-  sed -E 's#(postgresql://[^:]+:)[^@]+#\1REDACTED#g; s#(redis://:)[^@]+#\1REDACTED#g; s#(PASSWORD|SECRET|KEY|TOKEN)=([^[:space:]]+)#\1=REDACTED#g'
 }
 
 compose_volume_name() {

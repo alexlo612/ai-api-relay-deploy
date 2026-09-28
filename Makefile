@@ -3,26 +3,21 @@ SHELL := /usr/bin/env bash
 
 SERVICE ?=
 FILE ?=
-COMPOSE_BASE := -f compose.yaml
-COMPOSE_DOMAIN := $(shell if [ -f .env ] && grep -q '^DEPLOYMENT_MODE=domain' .env; then printf -- '-f compose.domain.yaml'; fi)
-COMPOSE := docker compose $(COMPOSE_BASE) $(COMPOSE_DOMAIN)
+COMPOSE := docker compose -f compose.yaml
 
-.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update enable-tls config render newapi-audit
+.PHONY: help init up start stop restart down status health logs backup backup-list restore pull update config newapi-audit
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; print "AI API Relay deployment commands:"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-init: ## First-time initialization, secret generation, config rendering, and startup
+init: ## First-time initialization, secret generation, and startup
 	@./scripts/bootstrap.sh
 
-render: ## Render Nginx and Redis config from .env
-	@./scripts/render-config.sh
-
-config: render ## Validate Compose configuration
+config: ## Validate Compose configuration
 	@$(COMPOSE) config
 
-up: render ## Start or apply the stack
-	@$(COMPOSE) up -d
+up: ## Start or apply the stack
+	@$(COMPOSE) up -d --remove-orphans
 
 start: ## Start existing containers
 	@$(COMPOSE) start $(SERVICE)
@@ -30,11 +25,11 @@ start: ## Start existing containers
 stop: ## Stop containers without removing them
 	@$(COMPOSE) stop $(SERVICE)
 
-restart: render ## Restart all services or SERVICE=name
+restart: ## Restart all services or SERVICE=name
 	@if [ -n "$(SERVICE)" ]; then $(COMPOSE) restart "$(SERVICE)"; else $(COMPOSE) restart; fi
 
 down: ## Stop and remove containers while preserving all volumes
-	@$(COMPOSE) down
+	@$(COMPOSE) down --remove-orphans
 
 status: ## Show Compose service status
 	@$(COMPOSE) ps
@@ -52,7 +47,7 @@ backup: ## Create a timestamped local backup
 	@./scripts/backup.sh
 
 backup-list: ## List local backup archives
-	@find backups -maxdepth 1 -type f -name 'backup-*.tar.gz' -print | sort
+	@./scripts/backup-list.sh
 
 restore: ## Restore FILE=backups/backup-YYYYMMDD-HHMMSS.tar.gz
 	@if [ -z "$(FILE)" ]; then echo "FILE=... is required" >&2; exit 1; fi
@@ -61,8 +56,5 @@ restore: ## Restore FILE=backups/backup-YYYYMMDD-HHMMSS.tar.gz
 pull: ## Pull pinned images from .env
 	@$(COMPOSE) pull
 
-update: ## Backup, pull pinned images, recreate changed containers, and health-check
+update: ## Back up, pull pinned images, recreate changed containers, and health-check
 	@./scripts/update.sh
-
-enable-tls: ## Issue or refresh TLS certificates for the selected deployment mode
-	@./scripts/certbot.sh issue

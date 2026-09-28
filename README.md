@@ -1,204 +1,122 @@
-# AI API Relay Service Deployment
+# AI API Relay deployment
 
-以 Docker Compose 在單台 4 GB RAM Hetzner VPS 部署 Sub2API、New API、Nginx、Certbot、共用 PostgreSQL 與共用 Redis。
+Docker Compose deployment for Sub2API and New API on a 4 GB Hetzner VPS. This
+repository owns the applications, PostgreSQL, Redis, their settings, and their
+data. The separate `vps-infra` repository owns the shared Nginx ingress,
+public ports 80/443, TLS certificates, and certificate renewal.
 
-本倉庫只管理部署與維運檔案，不修改 Sub2API 或 New API 的上游程式碼。
+## Production layout
 
-## Live demo
-
-Try New API here: <https://89.167.21.176:3000>
-
-## 架構
+The production checkout is `/srv/stacks/ai-api-relay-deploy`. Its Compose
+project name is `ai-api-relay`; its existing Docker volumes keep that prefix.
+Relay owns a private `backend` network so the applications can reach PostgreSQL
+and Redis. It attaches the two web applications to the external
+`vps-infra_ingress` network created and managed by `vps-infra`; Compose declares
+that network as external and never creates or configures it. PostgreSQL and
+Redis stay on `backend` and publish no host ports.
 
 ```mermaid
-flowchart TD
-    C[Client] -->|IP: HTTPS 3000/8080 or Domain: HTTPS 443| N[Nginx]
-    LE[Let's Encrypt] -->|HTTP-01 challenge| N
-    CB[Certbot] -->|certificates| N
-    N --> S[Sub2API]
-    N --> A[New API]
-    S --> P[(PostgreSQL)]
-    A --> P
-    S --> R[(Redis DB 0)]
-    A --> R[(Redis DB 1)]
-    B[Backup scripts] --> P
-    B --> V[Persistent app volumes]
+flowchart LR
+    Client --> InfraNginx["vps-infra Nginx :80/:443"]
+    InfraNginx -->|sub2api:8080| Sub2API
+    InfraNginx -->|new-api:3000| NewAPI
+    Sub2API --> PostgreSQL
+    NewAPI --> PostgreSQL
+    Sub2API --> Redis0["Redis DB 0"]
+    NewAPI --> Redis1["Redis DB 1"]
 ```
 
-| Service | Public ports | Persistent data | Health check |
-|---|---:|---|---|
-| Nginx | IP: 80, 3000, 8080; Domain: 80, 443 | ACME webroot, cert mounts | `/nginx-health` |
-| Certbot | none | Let's Encrypt cert volume | renewal/expiry reports |
-| Sub2API | none | `/app/data` | `/health` |
-| New API | none | `/data`, `/app/logs` | `/api/status` |
-| PostgreSQL | none | database volume | `pg_isready` |
-| Redis | none | AOF volume | authenticated `redis-cli ping` |
+| Public hostname | Application | Internal port |
+|---|---|---:|
+| `sub2api.byte612.com` | Sub2API | 8080 |
+| `api.byte612.com` | New API | 3000 |
 
-Only Nginx publishes host ports. PostgreSQL, Redis, Sub2API, and New API stay
-on Docker networks. Sub2API and New API also join the infra-owned external
-network `vps-infra_ingress`; PostgreSQL and Redis remain private. The network
-must exist before starting this Compose project. The Relay Nginx remains on its
-local `edge` network for compatibility until the shared ingress cutover.
+The service names and ports are the interface consumed by infra. Ingress
+network creation, routes, TLS, and route checks belong to the `vps-infra`
+repository.
 
-In the shared-ingress deployment, vps-infra owns hostname TLS and public ports
-80/443. Do not use Relay's standalone domain-mode overlay or `make enable-tls`
-to take over those ports; keep the Relay IP endpoints on 3000/8080 during the
-compatibility period. The Relay domain mode remains for standalone deployments.
+## First setup
 
-## Quick start: IP mode
-
-Prerequisites on the VPS:
-
-- Ubuntu 24.04 LTS or Debian 12 on `linux/amd64`
-- Docker Engine 26+ and Docker Compose v2
-- 4 GB RAM, at least 20 GB disk, and recommended 2–4 GB swap
-- Firewall allowing SSH from your admin IP and TCP 80 for ACME challenge
-- Current IP mode keeps TCP 3000 and 8080 public until the planned domain-mode cutover; domain mode publishes only 80/443
+Use Docker Engine with Compose v2, Git, and Make. The external network must
+already exist; `vps-infra` creates and owns it.
 
 ```bash
-cp .env.example .env
-chmod 600 .env
-nano .env
+cd /srv/stacks
+git clone <repository-url> ai-api-relay-deploy
+cd ai-api-relay-deploy
+# sudo is needed only to create the protected directory under /etc.
+sudo install -d -o "$USER" -g "$(id -gn)" -m 700 /etc/vps-infra/secrets/ai-api-relay
+install -m 600 .env.example /etc/vps-infra/secrets/ai-api-relay/.env
+ln -s /etc/vps-infra/secrets/ai-api-relay/.env .env
+```
+
+Set image tags and application settings in the protected `.env`. Public
+hostnames and ingress routes are managed by `vps-infra`. Replace all
+`change-me` values, then initialize:
+
+```bash
 make init
+make health
 ```
 
-**Security note:** In IP mode, the New API and Sub2API endpoints are reachable from
-the public Internet on ports 3000 and 8080, respectively. This is the current
-owner-approved operating decision, not a source-IP restriction. Use strong
-credentials and 2FA; restrict source IPs at the provider firewall when practical.
-The planned domain-mode cutover closes both ports.
+`make init` creates missing application secrets without replacing existing
+values, validates the settings, and starts the four Compose services. It does
+not issue or renew TLS certificates; `vps-infra` owns that lifecycle.
 
-`make init` generates any placeholder secrets without overwriting real values, renders config, validates Compose, starts the stack, and runs diagnostics.
+## Image versions
 
-Initial URLs in IP mode:
+Every image has an explicit tag in `compose.yaml`, with the selected tag
+recorded in `.env`. Sub2API, PostgreSQL, and Redis use fixed release tags. New
+API's latest upstream release is `v1.0.0-rc.40` (an RC); the last formal stable
+tag is `v0.13.2`, released on 2026-04-27. This deployment is already on RC.40,
+so keep it pinned until v1.0 GA or a tested compatibility and restore plan is
+available. See the [upstream release list](https://github.com/QuantumNous/new-api/releases)
+and [v0.13.2 release](https://github.com/QuantumNous/new-api/releases/tag/v0.13.2).
 
-- Sub2API: `https://89.167.21.176:8080`
-- New API: `https://89.167.21.176:3000`
-
-Run TLS issuance after `.env` is complete and port 80 reaches the VPS:
-
-```bash
-make enable-tls
-```
-
-Use `LETSENCRYPT_STAGING=true` first. After staging succeeds, switch to `LETSENCRYPT_STAGING=false` and run `make enable-tls` again.
-
-## Image tags
-
-Sub2API and New API upstream examples commonly show `latest`. This repository intentionally rejects `latest`; set `SUB2API_IMAGE_TAG` and `NEW_API_IMAGE_TAG` to reviewed tags or immutable digests in `.env` before production deployment.
-
-## Daily operations
+## Common operations
 
 ```bash
-make help
-make up
 make status
 make health
-make logs
 make logs SERVICE=sub2api
-make restart SERVICE=new-api
-make stop
-make start
+make logs SERVICE=new-api
+make backup
+make backup-list
+make update
 make down
 ```
 
-`make down` stops and removes containers but preserves all named volumes. Do not run `docker compose down -v` unless you intentionally want to delete PostgreSQL, Redis, app data, certificates, and ACME state.
+`make down` removes the app containers and keeps all named data volumes.
+Never use `docker compose down -v` for routine maintenance. It deletes the
+databases, Redis data, and application data.
 
-## Backups, updates, and rollback
+Before an image update, `make update` creates a database and volume backup,
+pulls the tags in `.env`, recreates changed services, and runs health checks.
+Restore the previous tags to roll back an image. If an application migration
+has changed the database schema, restore the matching pre-update backup before
+starting the older image.
 
-Create and list local backups:
+Backups go to `BACKUP_DIR`, defaulting to `/home/alex/backups/ai-api-relay`.
+The archive includes both PostgreSQL databases, Redis data, and application
+volumes, with a SHA-256 checksum. Restore is destructive to current app data;
+the script checks the checksum and asks for confirmation.
 
-```bash
-make backup
-make backup-list
-```
-
-Restore requires an explicit file and confirmation:
-
-```bash
-make restore FILE=backups/backup-YYYYMMDD-HHMMSS.tar.gz
-```
-
-Update by editing image tags in `.env`, then running:
+## Troubleshooting
 
 ```bash
-make update
+docker compose config --quiet
+docker compose ps
+docker compose logs --tail=100 sub2api new-api postgres redis
+docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose exec redis redis-cli --no-auth-warning ping
 ```
 
-`make update` validates config, creates a backup, pulls the pinned image tags, recreates changed containers, and runs health checks. To roll back, set image tags back to a known-good version and run `make up && make health`. Database migrations may not be reversible, so keep the pre-update backup.
-
-## Domain migration
-
-For standalone deployments only, use the Relay domain-mode procedure below. On
-this VPS, the shared `vps-infra` ingress owns DNS hostnames, TLS, and ports
-80/443. Do not use the standalone overlay or `make enable-tls` to take over
-those ports. Keep Relay IP compatibility ports 3000/8080 until clients have
-migrated and the owner approves retirement. See the vps-infra ingress runbook
-for the shared-ingress handoff.
-
-After DNS is ready:
-
-1. Create A records for `SUB2API_DOMAIN` and `NEW_API_DOMAIN` pointing to the VPS IPv4.
-2. Do not create AAAA records unless IPv6 is correctly configured on the VPS.
-3. Edit `.env`:
-
-   ```dotenv
-   DEPLOYMENT_MODE=domain
-   SUB2API_DOMAIN=sub2api.your-domain.com
-   NEW_API_DOMAIN=newapi.your-domain.com
-   LETSENCRYPT_EMAIL=you@example.com
-   LETSENCRYPT_STAGING=true
-   ```
-
-4. Run `make enable-tls` with staging.
-5. Set `LETSENCRYPT_STAGING=false`, run `make enable-tls` again, then verify HTTPS.
-6. Update firewall rules so public 3000/8080 are closed; domain mode publishes only 80/443.
-
-Mode changes preserve PostgreSQL, Redis, and application volumes.
-
-## Validation commands
-
-```bash
-./scripts/validate-env.sh
-docker compose config
-shellcheck scripts/*.sh postgres/init/*.sh
-make health
-```
-
-Nginx config can be tested with a container after rendering:
-
-```bash
-./scripts/render-config.sh bootstrap
-docker run --rm \
-  -v "$PWD/config/nginx/rendered/nginx.conf:/etc/nginx/nginx.conf:ro" \
-  -v "$PWD/config/nginx/rendered/conf.d:/etc/nginx/conf.d:ro" \
-  -v "$PWD/config/nginx/rendered/snippets:/etc/nginx/snippets:ro" \
-  nginx:1.29.1-alpine nginx -t
-```
+`make health` checks Relay container health and the two application endpoints.
+The `vps-infra` repository owns ingress and TLS checks.
 
 ## Documentation
 
-- [Technical PRD](PRD.md)
 - [Operator guide](USER_GUIDE.md)
-- [Implementation checklist](TODO.md)
-- [Agent instructions](AGENTS.md)
-
-These files support a documentation-driven workflow: update `PRD.md` when scope
-or requirements change, implement and verify against its acceptance criteria,
-track incomplete or deferred work in `TODO.md`, and keep executable operating
-procedures in `USER_GUIDE.md`. `README.md` remains the concise project entry point.
-Whole-VPS architecture and host inventory live in a separate local `vps-infra`
-directory; that directory is not part of this repository.
-
-## Security notes
-
-- Keep `.env` mode `0600`; it contains passwords and secrets.
-- Never commit `.env`, private keys, certificates, database dumps, backups, or production logs.
-- Keep SSH restricted to the administrator's source IP. At domain-mode cutover, close public 3000/8080 and verify the named HTTPS routes on 443.
-- Generate strong random passwords and secrets for new deployments. An existing
-  Sub2API admin password is not rejected solely for its length.
-- TLS certificates can be reissued and are not the most critical backup asset; database and app volumes are.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+- [Project requirements](PRD.md)
+- [Current deployment evidence](docs/current-state.md)
+- [Work checklist](TODO.md)

@@ -1,356 +1,119 @@
-# AI API Relay Web 操作指南
+# AI API Relay 操作指南
 
-本指南說明如何在單台 4 GB RAM Hetzner VPS 上，以 Docker Compose 部署與維運 Sub2API、New API、Nginx、Certbot、共用 PostgreSQL、共用 Redis。
+此 repo 管理 Sub2API、New API、PostgreSQL 與 Redis。正式 checkout 位於
+`/srv/stacks/ai-api-relay-deploy`。共用入口、公開連接埠、網域 TLS 和憑證
+續期由 `/srv/stacks/vps-infra` 管理。
 
-## 1. 部署模式
+## 網路與資料
 
-### 1.1 IP 模式
+- 此 repo 管理 private `backend` network，讓應用連到 PostgreSQL 和 Redis。
+  PostgreSQL、Redis 只加入該 network。
+- `sub2api` 和 `new-api` 也加入由 infra 建立及管理的 external network
+  `vps-infra_ingress`，供 infra 使用 `sub2api:8080` 和 `new-api:3000` 轉送。
+  Relay Compose 只引用並接用該 network，不建立、設定或維護它。
+- PostgreSQL 使用獨立的 `sub2api`、`newapi` database 和帳號。Redis DB 0
+  給 Sub2API，DB 1 給 New API。
+- `docker compose down` 保留 named volumes。不得以 `down -v` 作為日常操作。
 
-初期使用 VPS public IP 與兩個 HTTPS port：
+## 初始化
 
-- Sub2API：`https://89.167.21.176:8080`
-- New API：`https://89.167.21.176:3000`
-
-兩個 port 都由 Nginx 接收，再代理至 Docker 內部應用。Sub2API 與 New API 容器本身不 publish host port。
-
-IP 模式使用 Let's Encrypt short-lived IP certificate。此類憑證有效期約 6 天，因此至少每 12 小時應執行一次 renewal。此 VPS 目前決定在 domain-mode cutover 前將 `3000`/`8080` 對公網開放，並未限制來源 IP；切換時應改為只公開 `80`/`443`，並驗證 IPv4／IPv6 規則。
-
-### 1.2 Domain mode
-
-For standalone deployments only, Relay can publish its own domain endpoints on
-80/443. When using the shared ingress on this VPS, vps-infra owns hostname TLS
-and ports 80/443; do not enable Relay domain mode or run `make enable-tls` for
-these hostnames. Relay keeps its IP compatibility endpoints on 3000/8080 until
-clients have migrated and the owner approves retirement.
-
-- Sub2API: `https://sub2api.your-domain.com`
-- New API: `https://newapi.your-domain.com`
-
-## 2. VPS prerequisites
-
-建議環境：
-
-- Ubuntu 24.04 LTS 或 Debian 12
-- Docker Engine 26+ 與 Docker Compose v2 plugin
-- `make`、`openssl`、`curl`、`gettext-base` 或提供 `envsubst` 的套件
-- 4 GB RAM、至少 20 GB disk、2–4 GB swap
-- SSH 只允許管理員 IP
-- Port 80 必須公開供 ACME HTTP-01 challenge 使用
-
-安裝 Docker 請依 Docker 官方文件操作。部署前可用：
+在新主機先由 infra 備妥 `vps-infra_ingress`，確認 Docker Compose v2，再設定
+受保護的環境檔：
 
 ```bash
-docker --version
-docker compose version
-free -h
-df -h
+cd /srv/stacks/ai-api-relay-deploy
+# sudo is needed only to create the protected directory under /etc.
+sudo install -d -o "$USER" -g "$(id -gn)" -m 700 /etc/vps-infra/secrets/ai-api-relay
+install -m 600 .env.example /etc/vps-infra/secrets/ai-api-relay/.env
+ln -s /etc/vps-infra/secrets/ai-api-relay/.env .env
 ```
 
-## 3. 共用 PostgreSQL 與 Redis
-
-為節省 4 GB VPS RAM，只運行一個 PostgreSQL 容器及一個 Redis 容器，但資料隔離：
-
-- PostgreSQL：Sub2API 與 New API 使用不同 database、user、password。
-- Redis：Sub2API 使用 DB 0；New API 使用 DB 1。
-
-PostgreSQL 與 Redis 不 publish host port。`sub2api` 與 `new-api` 會額外連接
-由 vps-infra 管理的 external network `vps-infra_ingress`；啟動 Relay Compose
-前，infra owner 必須先建立該 network。資料庫與 Redis 不加入此 network。
-Relay 自有 Nginx 暫留在 `edge`，供共用 ingress 切換前的舊入口使用。
-Redis 的設定來源是 `config/redis/redis.conf.template`；`make render` 會
-產生被 Git 忽略的 `config/redis/redis.conf` 供 Compose 掛載。
-
-## 4. 首次安裝
+編輯外部 `.env`：確認映像 tag 並填好所有 `change-me` 值。Hostname 和
+ingress routing 由 infra 設定。接著執行：
 
 ```bash
-cp .env.example .env
-chmod 600 .env
-nano .env
 make init
-```
-
-`make init` 會：
-
-1. 生成仍為 placeholder 的 secret，且不覆寫既有非 placeholder 值。
-2. 驗證 `.env`。
-3. Render Redis 與 Nginx config。
-4. 執行 `docker compose config`。
-5. 啟動 stack。
-6. 執行健康檢查。
-
-首次 TLS 建議先用 staging：
-
-```dotenv
-LETSENCRYPT_STAGING=true
-```
-
-```bash
-make enable-tls
-```
-
-staging 成功後改為：
-
-```dotenv
-LETSENCRYPT_STAGING=false
-```
-
-再執行：
-
-```bash
-make enable-tls
-```
-
-## 5. 日常操作
-
-啟動或套用設定：
-
-```bash
-make up
-```
-
-底層仍可直接使用：
-
-```bash
-docker compose up -d
-```
-
-查看狀態與健康：
-
-```bash
-make status
 make health
 ```
 
-查看 logs：
+初始化會保留已有 secret；只替換仍是 placeholder 的值。不要把 `.env` 或
+備份複製到 Git。憑證與 hostname routing 由 vps-infra 維護，不要在 Relay
+repo 申請第二張憑證或啟動自有 Nginx。
+
+## 日常維運
 
 ```bash
-make logs
+make up
+make status
+make health
 make logs SERVICE=sub2api
 make logs SERVICE=new-api
-make logs SERVICE=nginx
-```
-
-暫停及恢復：
-
-```bash
 make stop
 make start
-```
-
-重新啟動：
-
-```bash
-make restart
-make restart SERVICE=new-api
-```
-
-停止並移除容器，但保留所有資料：
-
-```bash
 make down
 ```
 
-不要隨意執行 `docker compose down -v`；`-v` 會刪除 PostgreSQL、Redis、應用資料、憑證與 ACME state volumes。
+`make health` 只檢查 Relay 容器狀態、兩個 app health endpoint、主機磁碟和
+容器資源。Ingress、HTTPS、憑證和公開 DNS 都由 infra 管理及檢查。
 
-## 6. TLS 與 certificate renewal
-
-手動 issuance 或 renewal：
-
-```bash
-make enable-tls
-./scripts/certbot.sh renew
-./scripts/certbot.sh expiry
-```
-
-`issue` 會完整驗證 `.env`；`renew` 與唯讀的 `expiry` 不會因無關的應用
-密碼規則而拒絕檢查既有憑證。憑證查詢失敗時，`make health` 會回報失敗。
-
-IP certificate 使用 Certbot 5.4+ 的 `--ip-address` 與 `--preferred-profile shortlived`。若 renewal 成功，script 會先執行 `nginx -t`，再 reload Nginx。
-
-Compose 中的 Certbot 服務會每 12 小時自動檢查續期，不需另設主機 cron 或
-systemd timer。不過目前自動 renewal loop 尚未在憑證更新後 reload Nginx，
-此項修正列於 `TODO.md`。在修正完成前，檢查 `make logs SERVICE=certbot`；
-若 Certbot 已自動更新憑證，執行 `./scripts/certbot.sh renew` 以測試 Nginx
-設定並 reload，使 Nginx 載入新憑證。
-
-## 7. 從 IP 切換至共用 ingress
-
-本 VPS 的 hostname 入口由 `vps-infra` 管理；Relay 不接管 port 80/443，也不在此流程執行 `make enable-tls`。共用 ingress 的 DNS、憑證、port handoff、驗收與 rollback 順序見 vps-infra 的 ingress runbook。Relay owner 須先確認舊 IP／3000／8080 client 依賴、維護窗口與相容期限；切換期間 Relay 保留 IP 相容入口，直到 owner 確認可退役。
-
-Relay 應用只將 `sub2api` 與 `new-api` 接入 infra 建立的 external network `vps-infra_ingress`；PostgreSQL、Redis 保留在 `backend`。Standalone domain mode 僅適用於未使用共用 ingress 的部署。
-
-## 8. 更新與回滾
-
-更新前先修改 `.env` 中的 image tag，再執行：
-
-```bash
-make update
-```
-
-流程：
-
-1. 驗證設定。
-2. 建立本機備份。
-3. Pull `.env` 指定的 image tag。
-4. Recreate 有變更的 container。
-5. 執行健康檢查。
-
-回滾時，將 `.env` image tag 改回上一個已知正常版本：
-
-```bash
-make up
-make health
-```
-
-若上游已執行不可逆 database migration，需從更新前備份還原。
-
-## 9. 備份與還原
+## 備份與還原
 
 ```bash
 make backup
 make backup-list
-make restore FILE=backups/backup-YYYYMMDD-HHMMSS.tar.gz
+make restore FILE=/home/alex/backups/ai-api-relay/backup-YYYYMMDD-HHMMSS.tar.gz
 ```
 
-備份內容：
-
-- Sub2API PostgreSQL dump
-- New API PostgreSQL dump
-- Sub2API `/app/data`
-- New API `/data` 與 `/app/logs`
-- SHA-256 checksum
-
-TLS certificate 可重新申請，不視為最關鍵備份資料。
-
-還原前 script 會驗證 checksum 並要求確認。若要非互動執行，可直接使用：
+備份包含兩份 PostgreSQL dump、Redis volume、兩個 app volume 和 New API
+logs，並附 SHA-256 checksum。備份目的地與保留日數由 `.env` 的
+`BACKUP_DIR`、`BACKUP_RETENTION_DAYS` 控制。還原會停止 app 與 Redis，並
+替換資料；script 驗證 checksum 後仍會要求輸入 `RESTORE`。非互動還原須
+明確傳入 `--yes`：
 
 ```bash
-./scripts/restore.sh --file backups/backup-YYYYMMDD-HHMMSS.tar.gz --yes
+./scripts/restore.sh --file /home/alex/backups/ai-api-relay/backup-YYYYMMDD-HHMMSS.tar.gz --yes
 ```
 
-## 10. Firewall
+資料庫 schema 可能無法向前相容。升級前保留成功備份；若回退到舊 image，
+先還原與該 image 相符的備份。
 
-IP 模式（目前 TCP 3000／8080 對公網開放）：
+## Image 更新
 
-| Port | 用途 | 建議來源 |
-|---:|---|---|
-| 22 | SSH | 只允許管理員 IP |
-| 80 | ACME challenge | 公開 |
-| 3000 | New API via Nginx | 目前公開；建議可行時以 provider firewall 限制來源 |
-| 8080 | Sub2API via Nginx | 目前公開；建議可行時以 provider firewall 限制來源 |
-
-Domain 公開模式：
-
-| Port | 用途 | 建議來源 |
-|---:|---|---|
-| 22 | SSH | 只允許管理員 IP |
-| 80 | ACME、HTTPS redirect | 公開 |
-| 443 | HTTPS Web/API | 公開 |
-
-PostgreSQL 5432 與 Redis 6379 不可向公網開放。
-IP 模式公開管理介面具有較高暴露風險；使用強密碼及 2FA，並在網域模式切換後關閉 3000／8080。
-
-## 11. 排錯
+已審閱版本列於 Compose image 預設值和 `.env.example`。正式環境從受保護
+`.env` 讀取 tag。檢查 upstream release notes、安排維護時段，再執行：
 
 ```bash
-make status
+make update
 make health
-make logs
-docker compose config
-docker compose exec nginx nginx -t
-docker compose stats
 ```
 
-某服務持續 unhealthy：
+PostgreSQL 和 Redis 使用固定 patch tag；應用版本更新可能執行 database
+migration。New API 最新 release 是 RC `v1.0.0-rc.40`；最後查到的正式版是
+`v0.13.2`。目前維持已部署的 RC.40，不要直接降到舊正式版。切換版本前先
+讀 [官方 release notes](https://github.com/QuantumNous/new-api/releases)，並
+完成資料庫相容性與還原演練。
 
-```bash
-make logs SERVICE=服務名稱
-docker inspect --format '{{json .State.Health}}' 容器名稱
-```
-
-檢查資料庫與 Redis：
-
-```bash
-docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
-docker compose exec redis redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
-```
-
-檢查記憶體與 OOM：
-
-```bash
-free -h
-docker stats --no-stream
-docker inspect --format '{{.State.OOMKilled}}' 容器名稱
-```
-
-## 12. Repository checks
-
-```bash
-./scripts/validate-env.sh
-docker compose config
-shellcheck scripts/*.sh postgres/init/*.sh
-```
-
-CI 會執行 Compose config、ShellCheck、YAML lint、Markdown lint、secret scan 與 Nginx config test。
-
-## 13. New API 私人使用與定價稽核
-
-私人分享模式建議關閉公開註冊、演示站點及新用戶免費額度。不要把 New API
-管理 token 或渠道密鑰放進 Git；只為朋友建立個別帳號及有限額 token。
-定期檢查：
+## New API 存取稽核
 
 ```bash
 make newapi-audit
-./scripts/revoke-suspended-tokens.sh
 ```
 
-稽核只顯示開關、數量與啟用渠道的模型計價覆蓋情形，不顯示 token 或渠道密鑰。
-若已停用帳號仍有啟用 token，可先檢查完整資料庫備份空間，再執行：
+稽核不列出 token 或渠道密鑰。停用帳號仍有啟用 token 時，先查看腳本說明及
+確認已有資料庫備份，再決定是否以 `./scripts/revoke-suspended-tokens.sh
+--apply` 執行撤銷。
+
+## 排錯
 
 ```bash
-./scripts/revoke-suspended-tokens.sh --apply
+docker compose config --quiet
+docker compose ps
+docker compose logs --tail=100 SERVICE
+docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose exec redis redis-cli --no-auth-warning ping
+docker stats --no-stream
+df -h /srv/stacks /home/alex/backups
 ```
 
-此命令會在忽略 Git 的 `backups/` 目錄建立及驗證 New API 資料庫備份，
-只停用已停用、非 `admin`、`alex-user-test`、`alex-user-test-02` 帳號的啟用 token。
-New API 的 Redis token 快取可能短暫保留舊狀態；已停用帳號仍應被帳號狀態阻擋。
-
-New API 的系統設定／倍率設定有「同步上游倍率」，可比較上游
-`/api/ratio_config`、`/api/pricing`、OpenRouter 及內建 `models.dev` 價格預設。
-它能提供新模型價格候選值，但不是 OpenAI、Anthropic 官方價格的保證，
-也不能推斷自訂別名對應哪個實際上游型號。
-不要未經審核就批量覆寫既有 `tiered_expr` 計費。
-新模型上線時，先確認渠道路由、實際上游型號及官方輸入／輸出／快取價格，
-再預覽同步差異或在管理介面設定計費，最後執行 `make newapi-audit`。
-稽核中的 `UNSET` 代表沒有明確的模型價格或倍率；
-Self-use mode 可能套用預設倍率，應先核對再開放朋友使用。
-稽核亦顯示啟用帳號持有的無限額、永不到期和未限制模型的 token 數量。
-依朋友的使用需求設定明確額度與期限，避免憑證外洩後產生無上限費用；
-管理員自己的 token 亦應分用途建立、定期撤銷。不要在未決定每人預算前
-任意套用同一額度。
-
-## 14. 手動管理模型與計價
-
-模型路由與價格由兩個管理介面維護，倉庫不再同步或強制套用模型別名。
-Sub2API 管理上游帳號可用的實際模型及 Messages dispatch 映射；
-New API 管理對外 channel、別名、model mapping 與使用者計價。
-請以兩個管理介面的現值為準，不把文件中的型號或舊價格當作設定來源。
-
-新模型上線或切換別名時：
-
-1. 在 VPS 執行 `make backup`，確認備份成功；核對新模型的實際 ID、
-   帳號可用性、端點能力及官方輸入、輸出、快取價格。
-2. 在 Sub2API 帳號設定實際模型；若 Claude Code 走 Messages dispatch，
-   檢查群組的 exact mappings。移除不再使用的帳號別名，以免 New API
-   從 Sub2API `/v1/models` 抓取時重新加入舊名稱。
-3. 在 New API 設定對外 channel 模型清單與 model mapping，逐一核對
-   `coding-*`、版本化 `claude-*` 的目標。保留既有公開名稱時，客戶端
-   不需修改模型設定；改公開名稱則須同步更新客戶端。
-4. 在 New API 明確設定各公開名稱的計價，特別是自訂 `tiered_expr`、
-   長上下文及快取倍率；不要直接批量套用上游預設價格。
-5. 以 `/v1/responses`、`/v1/messages` 的實際請求測試路由與工具呼叫，
-   核對 `/v1/models`、`/api/pricing` 和 usage log 的扣額，最後執行
-   `make newapi-audit` 與 `make health`。出錯時依備份及變更紀錄手動回退。
-
-`claude-fable`、`claude-opus`、`claude-sonnet` 三個未版本化舊名稱已停止
-支援；不要再將它們加入 Sub2API 帳號或 New API channel。
+部署前 CI 和本機檢查命令列於 README。若 ingress、HTTPS 或 DNS 發生問題，
+依 infra repo 的流程處理；Relay repo 不管理這些項目。

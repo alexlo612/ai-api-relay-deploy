@@ -32,7 +32,7 @@ jobs:
           p = Path('.env')
           s = p.read_text()
           replacements = {
-              'admin@example.com': 'ops@example.org',
+              'admin@your-domain.com': 'ops@example.org',
               'change-me-postgres-superuser-password': 'x' * 40,
               'change-me-sub2api-postgres-password': 'y' * 40,
               'change-me-newapi-postgres-password': 'z' * 40,
@@ -42,16 +42,11 @@ jobs:
               'change-me-sub2api-totp-key-32-bytes-minimum': 't' * 48,
               'change-me-new-api-session-secret-32-bytes-minimum': 's' * 48,
               'change-me-new-api-crypto-secret-32-bytes-minimum': 'c' * 48,
-              'change-me-pin-sub2api-tag': 'ci-reviewed-tag',
-              'change-me-pin-new-api-tag': 'ci-reviewed-tag',
           }
           for old, new in replacements.items():
               s = s.replace(old, new)
           p.write_text(s)
           PY
-          ./scripts/render-config.sh bootstrap
-          grep -qx 'maxmemory 256mb' config/redis/redis.conf
-          git diff --exit-code
 
       - name: Validate environment
         run: ./scripts/validate-env.sh
@@ -63,18 +58,10 @@ jobs:
         run: shellcheck scripts/*.sh postgres/init/*.sh
 
       - name: Run YAML lint
-        run: yamllint .github/workflows/ci.yml .github/dependabot.yml compose.yaml compose.domain.yaml
+        run: yamllint .github/workflows/ci.yml .github/dependabot.yml compose.yaml
 
       - name: Run Markdown lint
-        run: markdownlint README.md USER_GUIDE.md PRD.md TODO.md AGENTS.md
-
-      - name: Test Nginx bootstrap config
-        run: |
-          docker run --rm \
-            -v "$PWD/config/nginx/rendered/nginx.conf:/etc/nginx/nginx.conf:ro" \
-            -v "$PWD/config/nginx/rendered/conf.d:/etc/nginx/conf.d:ro" \
-            -v "$PWD/config/nginx/rendered/snippets:/etc/nginx/snippets:ro" \
-            nginx:1.29.1-alpine nginx -t
+        run: markdownlint README.md USER_GUIDE.md PRD.md TODO.md AGENTS.md docs/*.md
 
       - name: Run secret scan
         uses: gitleaks/gitleaks-action@v3
