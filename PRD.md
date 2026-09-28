@@ -90,12 +90,13 @@
 - `domain` 模式入口：
   - `https://sub2api.example.com`
   - `https://newapi.example.com`
-- `ip` 模式由 Nginx 公開 TCP 80、3000、8080；`domain` 模式只公開 TCP 80、443。
-- `ip` 模式的 TCP 3000、8080 目前不限制來源 IP。此為已確認的營運決策，
+- `ip` 模式由 Relay Nginx 公開 TCP 80、3000、8080；standalone `domain` 模式公開 TCP 80、443。在此 VPS 使用共用 ingress 時，Relay Nginx 保留相容入口，hostname TLS 與 80/443 由 vps-infra 管理。
+- `domain` mode is for standalone deployments; on hosts using shared ingress, the infra-owned Nginx publishes 80/443 and terminates hostname TLS, while Relay retains its compatibility endpoints until client migration is approved.
+- `ip` mode 的 TCP 3000、8080 目前不限制來源 IP。此為已確認的營運決策，
   代表管理介面和 API 可從公網連線；使用強密碼與 2FA，並在網域切換時關閉這兩個 port。
 - Sub2API 與 New API 共用一個 PostgreSQL 容器，但使用不同 database 與帳號。
 - 兩個應用共用一個 Redis 容器，但使用不同 Redis DB index。
-- Nginx 在兩種模式均負責反向代理、串流回應及基本安全標頭；在 `domain` 模式額外負責 TLS termination。
+- Nginx 在 standalone 部署中負責反向代理、串流回應及基本安全標頭；shared-ingress 部署的 hostname TLS termination 由 vps-infra Nginx 負責。
 - Certbot 在兩種模式均啟用，並使用 HTTP-01 challenge；IP 模式使用 short-lived IP certificate。
 - 所有上游映像版本由 `.env` 鎖定，不直接硬編碼為 `latest`。
 - 日誌預設使用 Docker `json-file` rotation，不部署額外日誌平台。
@@ -220,6 +221,8 @@ flowchart TD
 
 ### FR-06：Nginx 反向代理
 
+Relay-owned Nginx 的 IP／standalone domain 模式：
+
 - `ip` 模式：
   - Nginx publish `80:80`、`8080:8080`、`3000:3000`。
   - `VPS_IP:8080` 代理至 Sub2API。
@@ -249,6 +252,8 @@ flowchart TD
 
 ### FR-07：TLS 憑證
 
+Relay 自行管理 IP 憑證；standalone deployment 亦由 Relay 管理網域憑證。在此 VPS 使用共用 ingress 時，hostname 憑證及續期由 vps-infra 管理；相容入口保留期間，Relay 維持獨立的 IP 憑證 state。
+
 - `ip` 模式使用 Let's Encrypt short-lived IP certificate。
 - Certbot 必須固定為 5.4 或以上版本，並使用 `--preferred-profile shortlived`、`--webroot` 及 `--ip-address`。
 - IP certificate 有效期約 160 小時，因此必須完全自動續期，至少每 12 小時檢查一次。
@@ -261,16 +266,12 @@ flowchart TD
   3. 使用 production endpoint 申請 short-lived IP certificate。
   4. 產生 HTTPS 3000/8080 Nginx 設定並執行 `nginx -t`。
   5. reload Nginx 並驗證兩個 HTTPS endpoint。
-- 從 `ip` 模式升級至 `domain` 模式時必須：
+- standalone `domain` mode 升級流程僅適用於未使用共用 ingress 的部署；此 VPS 的 hostname TLS 由 vps-infra 管理：
   1. 驗證必要 DNS 與環境變數。
   2. 啟動可提供 HTTP challenge 的 Nginx。
   3. 申請兩個網域的憑證，可使用單一 SAN 憑證或兩張獨立憑證。
   4. 啟用 HTTPS 設定。
   5. reload Nginx。
-- Certbot 必須至少每 12 小時檢查一次續期。
-- 成功續期後必須 reload Nginx。
-- staging 模式須可用於測試，避免觸發 Let's Encrypt rate limit。
-- 切換模式不得重建或清除 PostgreSQL、Redis 或應用資料 volumes。
 
 ### FR-08：集中設定
 
@@ -473,12 +474,16 @@ flowchart TD
 
 ## 10. 網路設計
 
-建議使用兩個 Docker network：
+Relay 使用三個 Docker network：
 
-- `edge`：Nginx、Sub2API、New API。
-- `backend`：Sub2API、New API、PostgreSQL、Redis，設定 `internal: true`。
+- `edge`：Relay 自己的 Nginx 與兩個應用，作為舊入口相容期間的私有網路。
+- `backend`：兩個應用、PostgreSQL、Redis，設定 `internal: true`。
+- `ingress`：名稱固定為 `vps-infra_ingress` 的外部 network；僅
+  Sub2API、New API 加入，供獨立 vps-infra Nginx 代理。
 
-Nginx 不需連接 `backend`，應只透過 `edge` 存取應用。PostgreSQL 與 Redis 只連接 `backend`。
+`ingress` 由 vps-infra 建立與管理，Relay Compose 不建立或移除它。
+正式執行 Relay Compose 前須先確保該 network 已存在。PostgreSQL 與 Redis
+只連接 `backend`；Relay Nginx 不加入共用 ingress。
 
 主機端口依部署模式：
 
@@ -543,13 +548,13 @@ README 必須記錄每個設定的最終來源，避免同一項目同時在 Com
 11. 透過 `https://VPS_IP:8080` 與 `https://VPS_IP:3000` 完成首次產品設定。
 12. 執行首次本機備份並驗證備份檔及 checksum。
 
-取得網域後再執行 Domain 模式升級：
+取得網域後的 standalone Domain 模式升級流程（本 VPS 使用共用 ingress，不執行此流程）：
 
-1. 將兩個 A/AAAA DNS record 指向 VPS；若未正確配置 IPv6，不應建立 AAAA record。
-2. 在 `.env` 設定兩個網域、Let's Encrypt email 及 `DEPLOYMENT_MODE=domain`。
+1. 將 DNS 設定指向 VPS；未正確配置 IPv6 時不建立 AAAA record。
+2. 在 `.env` 設定網域、Let's Encrypt email 及 `DEPLOYMENT_MODE=domain`。
 3. 先以 Let's Encrypt staging 執行 `make enable-tls`。
 4. staging 驗證成功後申請正式憑證。
-5. 驗證 HTTPS 並關閉公網 3000/8080。
+5. 驗證 HTTPS，並確認 3000/8080 不再公開。
 
 ## 14. 測試要求
 

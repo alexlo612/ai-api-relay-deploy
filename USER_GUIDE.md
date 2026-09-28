@@ -15,14 +15,16 @@
 
 IP 模式使用 Let's Encrypt short-lived IP certificate。此類憑證有效期約 6 天，因此至少每 12 小時應執行一次 renewal。此 VPS 目前決定在 domain-mode cutover 前將 `3000`/`8080` 對公網開放，並未限制來源 IP；切換時應改為只公開 `80`/`443`，並驗證 IPv4／IPv6 規則。
 
-### 1.2 Domain 模式
+### 1.2 Domain mode
 
-日後取得網域後使用：
+For standalone deployments only, Relay can publish its own domain endpoints on
+80/443. When using the shared ingress on this VPS, vps-infra owns hostname TLS
+and ports 80/443; do not enable Relay domain mode or run `make enable-tls` for
+these hostnames. Relay keeps its IP compatibility endpoints on 3000/8080 until
+clients have migrated and the owner approves retirement.
 
-- Sub2API：`https://sub2api.your-domain.com`
-- New API：`https://newapi.your-domain.com`
-
-Domain 模式只 publish 80/443，不再公開 3000/8080。
+- Sub2API: `https://sub2api.your-domain.com`
+- New API: `https://newapi.your-domain.com`
 
 ## 2. VPS prerequisites
 
@@ -51,7 +53,10 @@ df -h
 - PostgreSQL：Sub2API 與 New API 使用不同 database、user、password。
 - Redis：Sub2API 使用 DB 0；New API 使用 DB 1。
 
-PostgreSQL 與 Redis 不 publish host port。
+PostgreSQL 與 Redis 不 publish host port。`sub2api` 與 `new-api` 會額外連接
+由 vps-infra 管理的 external network `vps-infra_ingress`；啟動 Relay Compose
+前，infra owner 必須先建立該 network。資料庫與 Redis 不加入此 network。
+Relay 自有 Nginx 暫留在 `edge`，供共用 ingress 切換前的舊入口使用。
 Redis 的設定來源是 `config/redis/redis.conf.template`；`make render` 會
 產生被 Git 忽略的 `config/redis/redis.conf` 供 Compose 掛載。
 
@@ -168,30 +173,11 @@ systemd timer。不過目前自動 renewal loop 尚未在憑證更新後 reload 
 若 Certbot 已自動更新憑證，執行 `./scripts/certbot.sh renew` 以測試 Nginx
 設定並 reload，使 Nginx 載入新憑證。
 
-## 7. 從 IP 切換至 Domain 模式
+## 7. 從 IP 切換至共用 ingress
 
-1. 建立兩個 DNS A record 指向 VPS IPv4。
-2. 若 IPv6 未正確配置，不建立 AAAA record。
-3. 修改 `.env`：
+本 VPS 的 hostname 入口由 `vps-infra` 管理；Relay 不接管 port 80/443，也不在此流程執行 `make enable-tls`。共用 ingress 的 DNS、憑證、port handoff、驗收與 rollback 順序見 vps-infra 的 ingress runbook。Relay owner 須先確認舊 IP／3000／8080 client 依賴、維護窗口與相容期限；切換期間 Relay 保留 IP 相容入口，直到 owner 確認可退役。
 
-   ```dotenv
-   DEPLOYMENT_MODE=domain
-   SUB2API_DOMAIN=sub2api.your-domain.com
-   NEW_API_DOMAIN=newapi.your-domain.com
-   LETSENCRYPT_EMAIL=you@example.com
-   LETSENCRYPT_STAGING=true
-   ```
-
-4. 測試 staging certificate：
-
-   ```bash
-   make enable-tls
-   ```
-
-5. staging 成功後將 `LETSENCRYPT_STAGING=false`，再次執行 `make enable-tls`。
-6. 驗證 HTTPS 後，在 firewall 關閉公網 3000/8080。
-
-切換模式不會清除 PostgreSQL、Redis 或 application volumes。
+Relay 應用只將 `sub2api` 與 `new-api` 接入 infra 建立的 external network `vps-infra_ingress`；PostgreSQL、Redis 保留在 `backend`。Standalone domain mode 僅適用於未使用共用 ingress 的部署。
 
 ## 8. 更新與回滾
 

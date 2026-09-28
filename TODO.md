@@ -4,6 +4,12 @@
 
 ## 維運與可靠性
 
+- [x] 2026-09-28：`sub2api`、`new-api` 加入 infra-owned external network
+  `vps-infra_ingress`，保留原 `edge`／`backend`；PostgreSQL、Redis 仍只連
+  `backend`。`docker compose --env-file .env.example config --quiet` 通過；
+  `yamllint compose.yaml` 因既有全檔格式問題（缺少 `---`、多處超過 80
+  字元）未通過。尚未建立主機 network、啟動服務或驗證實際跨 project
+  routing；infra owner 須先建立 network。
 - [ ] 修正自動 Certbot renewal 成功後未 reload Nginx 的問題，並驗證新憑證已載入。
 - [ ] 建立憑證續期失敗及憑證到期告警。
 - [ ] 在乾淨環境完成本機備份還原測試。

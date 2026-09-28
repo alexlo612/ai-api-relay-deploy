@@ -34,7 +34,16 @@ flowchart TD
 | PostgreSQL | none | database volume | `pg_isready` |
 | Redis | none | AOF volume | authenticated `redis-cli ping` |
 
-Only Nginx publishes host ports. PostgreSQL, Redis, Sub2API, and New API stay on Docker networks.
+Only Nginx publishes host ports. PostgreSQL, Redis, Sub2API, and New API stay
+on Docker networks. Sub2API and New API also join the infra-owned external
+network `vps-infra_ingress`; PostgreSQL and Redis remain private. The network
+must exist before starting this Compose project. The Relay Nginx remains on its
+local `edge` network for compatibility until the shared ingress cutover.
+
+In the shared-ingress deployment, vps-infra owns hostname TLS and public ports
+80/443. Do not use Relay's standalone domain-mode overlay or `make enable-tls`
+to take over those ports; keep the Relay IP endpoints on 3000/8080 during the
+compatibility period. The Relay domain mode remains for standalone deployments.
 
 ## Quick start: IP mode
 
@@ -119,6 +128,13 @@ make update
 `make update` validates config, creates a backup, pulls the pinned image tags, recreates changed containers, and runs health checks. To roll back, set image tags back to a known-good version and run `make up && make health`. Database migrations may not be reversible, so keep the pre-update backup.
 
 ## Domain migration
+
+For standalone deployments only, use the Relay domain-mode procedure below. On
+this VPS, the shared `vps-infra` ingress owns DNS hostnames, TLS, and ports
+80/443. Do not use the standalone overlay or `make enable-tls` to take over
+those ports. Keep Relay IP compatibility ports 3000/8080 until clients have
+migrated and the owner approves retirement. See the vps-infra ingress runbook
+for the shared-ingress handoff.
 
 After DNS is ready:
 
