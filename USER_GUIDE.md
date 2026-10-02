@@ -11,6 +11,9 @@
 - `sub2api` 和 `new-api` 也加入由 infra 建立及管理的 external network
   `vps-infra_ingress`，供 infra 使用 `sub2api:8080` 和 `new-api:3000` 轉送。
   Relay Compose 只引用並接用該 network，不建立、設定或維護它。
+- New API 對外網址為 `https://newapi.byte612.com/`。若更換 hostname，
+  除 infra 的 DNS／Nginx／TLS 外，也要同步更新 New API 設定中的
+  `ServerAddress` 和 `passkey.origins`，並先檢查已註冊的 Passkeys。
 - PostgreSQL 使用獨立的 `sub2api`、`newapi` database 和帳號。Redis DB 0
   給 Sub2API，DB 1 給 New API。
 - `docker compose down` 保留 named volumes。不得以 `down -v` 作為日常操作。

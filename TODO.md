@@ -28,6 +28,12 @@
 
 ## 後續工作
 
+- [x] 2026-10-02 08:24 UTC：將 New API 正式入口與持久化的
+  `ServerAddress`、`passkey.origins` 改為 `newapi.byte612.com`；確認 Passkey
+  登入停用且無已註冊 Passkey，重啟 `new-api` 後四個 Relay 容器 healthy，
+  `/api/status` 回報新網址。公開與 origin HTTPS 各回 `200`；DNS／TLS／
+  Nginx 驗證詳見 infra repo，app 設定與未涵蓋範圍見
+  [`docs/current-state.md`](docs/current-state.md)。
 - [ ] 為 New API 正式版規劃相容性與資料庫 migration 測試。現行部署維持
   `v1.0.0-rc.40`；舊正式 tag 不可未經備份及相容性審查直接降版。
 - [ ] 在乾淨環境完成備份還原演練，記錄操作時間、結果與 RPO／RTO。

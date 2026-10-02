@@ -29,7 +29,7 @@ flowchart LR
 | Public hostname | Application | Internal port |
 |---|---|---:|
 | `sub2api.byte612.com` | Sub2API | 8080 |
-| `api.byte612.com` | New API | 3000 |
+| `newapi.byte612.com` | New API | 3000 |
 
 The service names and ports are the interface consumed by infra. Ingress
 network creation, routes, TLS, and route checks belong to the `vps-infra`

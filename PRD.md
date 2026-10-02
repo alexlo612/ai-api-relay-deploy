@@ -23,7 +23,10 @@ checkout、Compose project 及資料 owner。Relay 不 clone 或更新 infra rep
 - Relay 備份：`/home/alex/backups/ai-api-relay/`（由 `alex` 管理，不需 sudo）
 - 私有 `backend` network 由 Relay 管理；共用 `vps-infra_ingress` 由 infra
   建立及管理，Relay 只將兩個 web app 接上該 external network。
-- 正式 hostname：`sub2api.byte612.com` 與 `api.byte612.com`。
+- 正式 hostname：`sub2api.byte612.com` 與 `newapi.byte612.com`。
+- New API 持久化的 `ServerAddress` 須設為 `https://newapi.byte612.com`，
+  `passkey.origins` 須包含同一網址；hostname 變更時須檢查既有 Passkey domain
+  與憑證影響，再更新 app 設定。
 
 Relay Compose 只有四個服務：
 

@@ -1,5 +1,24 @@
 # Current deployment evidence
 
+## New API public hostname
+
+**Observed:** 2026-10-02 08:24 UTC, on the deployment host as `alex`.
+The infra Nginx route serves New API at
+`https://newapi.byte612.com/api/status`: local origin and public Cloudflare
+requests both returned HTTP 200. Public DNS for `api.byte612.com` now returns
+NXDOMAIN, so infra removed the temporary old-host redirect and reissued the
+certificate for newapi/sub2api only. Certificate and renewal checks are
+recorded in the infra repo.
+
+New API's persisted `ServerAddress` and `passkey.origins` were changed from
+the old hostname to the new hostname in one PostgreSQL transaction. Passkey
+login was disabled and `passkey_credentials` had zero rows before the change.
+Only the `new-api` container was restarted to load the settings; it and the
+other three Relay containers were healthy afterward. `/api/status` reports
+`server_address=https://newapi.byte612.com` and
+`passkey_rp_id=newapi.byte612.com`. The Relay Compose definition and ingress
+network attachment did not change.
+
 ## Direct observation before the move
 
 **Observed:** 2026-09-28 UTC, on `ubuntu-4gb-hel1-01` as `alex`.

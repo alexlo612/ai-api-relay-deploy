@@ -21,7 +21,7 @@ Keep app deployment details here and shared host infrastructure in its own repo.
 - VPS: `alex@89.167.21.176`
 - Relay checkout: `/srv/stacks/ai-api-relay-deploy`
 - Compose project: `ai-api-relay`
-- Public hostnames: `sub2api.byte612.com`, `api.byte612.com`
+- Public hostnames: `sub2api.byte612.com`, `newapi.byte612.com`
 - External network: `vps-infra_ingress`
 - Secret source: `/etc/vps-infra/secrets/ai-api-relay/.env`
 - Backup directory: `/home/alex/backups/ai-api-relay`
