@@ -1,0 +1,165 @@
+<!-- ByteAPI homepage: multilingual, dark only with a compact language selector. Paste the complete fragment into Home Page Content. -->
+<style>
+#byte-home { --paper:#020617; --ink:#f3f4f6; --muted:#94a3b8; --line:#1e293b; --accent:#2dd4bf; --hover:#0f172a; --code:#1e293b; min-height:100vh; color:var(--ink); background:var(--paper); color-scheme:dark; font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; }
+#byte-home, #byte-home * { box-sizing:border-box; }
+#byte-home a { color:inherit; text-decoration:none; }
+#byte-home a:focus-visible, #byte-home summary:focus-visible, #byte-home select:focus-visible { outline:2px solid var(--accent); outline-offset:5px; border-radius:4px; }
+#byte-home .byte-wrap { max-width:1120px; margin:0 auto; padding:0 40px; }
+#byte-home .byte-header { min-height:106px; display:flex; align-items:center; justify-content:space-between; gap:24px; }
+#byte-home .byte-brand { display:inline-flex; align-items:center; gap:11px; flex-shrink:0; }
+#byte-home .byte-logo { display:block; width:38px; height:38px; fill:#fff; }
+#byte-home .byte-brand-name { font-size:23px; font-weight:650; letter-spacing:-.04em; }
+#byte-home .byte-nav { display:flex; align-items:center; gap:24px; font-size:13px; }
+#byte-home .byte-nav a:hover { color:var(--accent); }
+#byte-home .byte-hero { text-align:center; padding:68px 0 62px; }
+#byte-home h1 { margin:0; font-size:clamp(48px,6.5vw,76px); font-weight:650; line-height:1.2; letter-spacing:-.055em; }
+#byte-home h1 span { display:inline; }
+#byte-home h1 span + span::before { content:"\00a0"; }
+#byte-home .byte-lead { max-width:650px; margin:23px auto 26px; color:var(--muted); font-size:17px; line-height:1.9; }
+#byte-home .byte-button { min-height:47px; display:inline-flex; gap:20px; align-items:center; justify-content:center; padding:11px 21px; border:1px solid var(--line); border-radius:6px; font-size:14px; font-weight:550; transition:background .15s; }
+#byte-home .byte-button:hover { background:var(--hover); }
+#byte-home .byte-arrow { font-size:19px; line-height:1; }
+#byte-home .byte-faq { max-width:720px; margin:0 auto; padding:49px 0 64px; border-top:1px solid var(--line); }
+#byte-home .byte-faq-heading { text-align:center; margin-bottom:29px; }
+#byte-home .byte-section-label { margin:0 0 9px; font:11px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.13em; color:var(--muted); }
+#byte-home h2 { margin:0; font-size:27px; line-height:1.3; font-weight:600; letter-spacing:-.04em; }
+#byte-home details { border-bottom:1px solid var(--line); }
+#byte-home details:first-child { border-top:1px solid var(--line); }
+#byte-home summary { cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:20px 0; font-size:14px; font-weight:500; }
+#byte-home summary::-webkit-details-marker { display:none; }
+#byte-home summary::after { content:"+"; flex-shrink:0; color:var(--muted); font:20px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
+#byte-home details[open] summary::after { content:"−"; }
+#byte-home .byte-answer { margin:0; padding:0 28px 22px 0; color:var(--muted); font-size:13px; line-height:1.9; }
+#byte-home .byte-answer a { color:var(--ink); text-decoration:underline; text-underline-offset:3px; }
+#byte-home code { background:var(--code); border-radius:3px; padding:2px 5px; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap:anywhere; }
+#byte-home .byte-footer { border-top:1px solid var(--line); padding:26px 0 30px; display:flex; align-items:center; justify-content:space-between; gap:20px; font-size:12px; color:var(--muted); }
+#byte-home .byte-footer p { margin:0; }
+#byte-home .byte-footer-links { display:flex; flex-wrap:wrap; gap:20px; }
+#byte-home [data-byte-lang] { display:none; }
+#byte-home:has(#byte-language option[value="zh-CN"]:checked) [data-byte-lang="zh-CN"],
+#byte-home:has(#byte-language option[value="zh-TW"]:checked) [data-byte-lang="zh-TW"],
+#byte-home:has(#byte-language option[value="en"]:checked) [data-byte-lang="en"] { display:revert; }
+@media(max-width:760px) {
+ #byte-home .byte-wrap { padding:0 16px; }
+ #byte-home .byte-header { min-height:80px; flex-wrap:nowrap; justify-content:space-between; padding:18px 0; gap:8px; }
+ #byte-home .byte-brand { gap:8px; }
+ #byte-home .byte-logo { width:32px; height:32px; }
+ #byte-home .byte-brand-name { font-size:20px; }
+ #byte-home .byte-nav { width:auto; flex-shrink:0; justify-content:flex-end; flex-wrap:nowrap; font-size:12px; }
+ #byte-home .byte-hero { padding:41px 0 43px; }
+ #byte-home h1 { font-size:clamp(43px,10.5vw,65px); }
+ #byte-home h1 span { display:block; }
+ #byte-home h1 span + span::before { content:none; }
+ #byte-home .byte-lead { font-size:15px; margin:22px auto 23px; }
+ #byte-home .byte-faq { padding:38px 0 42px; }
+ #byte-home h2 { font-size:25px; }
+ #byte-home summary { font-size:13px; padding:19px 0; }
+ #byte-home .byte-footer { align-items:flex-start; flex-direction:column; gap:12px; }
+}
+@media(prefers-reduced-motion:reduce) { #byte-home * { transition:none !important; } }
+
+/* One shared header control style, including the native customizable select. */
+#byte-home { --control:#0b1224; --control-border:#253147; --cta:#2dd4bf; --cta-hover:#5eead4; --cta-text:#042f2e; }
+#byte-home .byte-nav { gap:8px; }
+#byte-home .byte-control { height:40px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 12px; color:var(--ink); background:var(--control); border:1px solid var(--control-border); border-radius:8px; font-family:inherit; font-size:13px; font-weight:500; line-height:1; white-space:nowrap; transition:background .15s,border-color .15s; }
+#byte-home .byte-control:hover { background:var(--hover); border-color:var(--muted); }
+#byte-home .byte-icon { width:16px; height:16px; display:block; flex-shrink:0; }
+#byte-home .byte-language-control { width:98px; height:32px; display:inline-flex; align-items:center; padding:0 4px; color:var(--muted); font-size:12px; anchor-name:--byte-language-anchor; }
+#byte-home .byte-language-control:hover { color:var(--ink); }
+#byte-home .byte-language-select { flex:1; min-width:0; max-width:none; height:100%; padding:0; border:0; border-radius:0; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+#byte-home .byte-language-select, #byte-home .byte-language-select::picker(select) { appearance:base-select; }
+#byte-home .byte-language-select { display:flex; align-items:center; justify-content:space-between; }
+#byte-home .byte-language-select::picker-icon { color:var(--muted); font-size:10px; line-height:1; margin-inline-start:6px; }
+#byte-home .byte-language-select > button { display:inline-flex; align-items:center; padding:0; border:0; background:none; color:inherit; cursor:pointer; }
+#byte-home .byte-language-select selectedcontent { display:none; }
+#byte-home .byte-language-select:open::picker-icon { transform:rotate(180deg); }
+#byte-home .byte-language-select::picker(select) { position-anchor:--byte-language-anchor; top:calc(anchor(bottom) + 6px); left:anchor(left); min-width:132px; padding:5px; color:var(--ink); background:var(--control); border:1px solid var(--control-border); border-radius:8px; font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; box-shadow:0 12px 28px #0003; }
+#byte-home .byte-language-select option { display:flex; align-items:center; gap:12px; min-height:36px; padding:8px 10px; border-radius:5px; cursor:pointer; }
+#byte-home .byte-language-select option:hover, #byte-home .byte-language-select option:focus { background:var(--hover); }
+#byte-home .byte-language-select option:checked { color:var(--accent); background:var(--hover); }
+#byte-home .byte-language-select option::checkmark { order:2; margin-inline-start:auto; }
+#byte-home .byte-button { background:var(--cta); color:var(--cta-text); border-color:var(--cta); padding:13px 25px; font-weight:650; box-shadow:0 5px 22px #14b8a622; }
+#byte-home .byte-button:hover { background:var(--cta-hover); border-color:var(--cta-hover); }
+#byte-home .byte-direct { display:flex; align-items:center; justify-content:center; gap:7px; margin:0 0 22px; color:var(--accent); font-size:13px; }
+#byte-home .byte-credit { max-width:590px; margin:22px auto 0; }
+#byte-home .byte-credit-title { margin:0 0 5px; font-size:15px; font-weight:500; }
+#byte-home .byte-credit-title strong { color:var(--accent); font-size:18px; font-weight:650; white-space:nowrap; }
+#byte-home .byte-credit-copy { margin:0; color:var(--muted); font-size:12px; line-height:1.9; text-wrap:pretty; }
+@media(max-width:760px) {
+ #byte-home .byte-control { height:40px; padding:0 10px; gap:7px; font-size:12px; }
+ #byte-home .byte-language-control { width:78px; height:40px; flex-shrink:0; }
+ #byte-home .byte-language-select { position:static; height:100%; max-width:none; padding:0; }
+ #byte-home .byte-nav { gap:8px; }
+ #byte-home .byte-model-price { display:none; }
+ #byte-home .byte-credit-title { font-size:14px; }
+}
+@supports (appearance:base-select) {
+ #byte-home .byte-language-control { width:46px; }
+}
+</style>
+<div id="byte-home">
+  <div class="byte-wrap">
+    <header class="byte-header">
+      <a class="byte-brand" href="/home" aria-label="ByteAPI"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" class="byte-logo" aria-hidden="true"><path d="M36 18H110L94 42H51L37 62H8Z M91 66H120L92 110H18L34 86H77Z"/></svg><span class="byte-brand-name">ByteAPI</span></a>
+      <nav class="byte-nav" aria-label="Navigation">
+        <div class="byte-language-control"><select class="byte-language-select" id="byte-language" aria-label="语言 / 語言 / Language" title="语言 / 語言 / Language">
+          <button type="button"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/></svg><selectedcontent></selectedcontent></button>
+          <option value="zh-CN" selected>简体中文</option><option value="zh-TW">繁體中文</option><option value="en">English</option>
+        </select></div>
+
+        <a class="byte-control byte-model-price" href="/model-plaza"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 12 9 9 9-9V3h-9L3 12Z"/><circle cx="16" cy="8" r="1"/></svg><span data-byte-lang="zh-CN" lang="zh-CN">模型价格</span><span data-byte-lang="zh-TW" lang="zh-TW">模型價格</span><span data-byte-lang="en" lang="en">Model pricing</span></a>
+        <a class="byte-control byte-login" href="/login"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4h9v16h-9M3 12h11m-4-4 4 4-4 4"/></svg><span data-byte-lang="zh-CN" lang="zh-CN">登录</span><span data-byte-lang="zh-TW" lang="zh-TW">登入</span><span data-byte-lang="en" lang="en">Log in</span></a>
+      </nav>
+    </header>
+    <main>
+      <section class="byte-hero">
+        <div data-byte-lang="zh-CN" lang="zh-CN">
+          <h1><span>一个 Key，</span><span>全网模型。</span></h1>
+          <p class="byte-lead">一套配置，接入 Claude Code、Codex、Cursor 和 Antigravity。<br>工具随你选，配置不用反复改。</p>
+          <p class="byte-direct"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/></svg><span>直连就能用，无需 VPN</span></p>
+          <a class="byte-button" href="/model-plaza">查看模型价格 <span class="byte-arrow" aria-hidden="true">→</span></a>
+          <div class="byte-credit"><p class="byte-credit-title">人民币充值，美金额度 <strong>1 : 1</strong></p><p class="byte-credit-copy">充 1 元，得 1 美元额度。官方约 7 元的额度，这里 1 元就有；使用模型，还能再享分组倍率折扣。</p></div>
+        </div>
+        <div data-byte-lang="zh-TW" lang="zh-TW">
+          <h1><span>一個 Key，</span><span>全網模型。</span></h1>
+          <p class="byte-lead">一套設定，接入 Claude Code、Codex、Cursor 和 Antigravity。<br>工具隨你選，設定不用反覆改。</p>
+          <p class="byte-direct"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/></svg><span>直連就能用，無需 VPN</span></p>
+          <a class="byte-button" href="/model-plaza">查看模型價格 <span class="byte-arrow" aria-hidden="true">→</span></a>
+          <div class="byte-credit"><p class="byte-credit-title">人民幣充值，美金額度 <strong>1 : 1</strong></p><p class="byte-credit-copy">充 1 元，得 1 美元額度。官方約 7 元的額度，這裡 1 元就有；使用模型，還能再享分組倍率折扣。</p></div>
+        </div>
+        <div data-byte-lang="en" lang="en">
+          <h1><span>One Key.</span><span>Every model.</span></h1>
+          <p class="byte-lead">One setup for Claude Code, Codex, Cursor, and Antigravity.<br>Choose your tool. Keep the same setup.</p>
+          <p class="byte-direct"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/></svg><span>Connect directly. No VPN needed.</span></p>
+          <a class="byte-button" href="/model-plaza">View model pricing <span class="byte-arrow" aria-hidden="true">→</span></a>
+          <div class="byte-credit"><p class="byte-credit-title">Top up in RMB. Get USD credit at <strong>1 : 1</strong></p><p class="byte-credit-copy">RMB 1 adds USD 1 in credit. Credit that costs around RMB 7 at official rates costs RMB 1 here, with group rate discounts on top.</p></div>
+        </div>
+      </section>
+      <section class="byte-faq" id="byte-faq" aria-label="FAQ">
+        <div data-byte-lang="zh-CN" lang="zh-CN"><div class="byte-faq-heading"><p class="byte-section-label">Q & A</p><h2>你可能想知道的。</h2></div><div class="byte-questions">
+          <details><summary>什么是 AI 中转站？能用哪些模型？</summary><p class="byte-answer">AI 中转站提供统一的 API 接入入口，方便你管理 Key、查看用量。你的 Key 能调用哪些模型，取决于所属分组和权限。模型和价格可以在<a href="/model-plaza">模型价格</a>页面查看，实际可用列表以当前 Key 的 <code>/v1/models</code> 返回结果为准。</p></details>
+          <details><summary>怎么计费？缓存怎么算？</summary><p class="byte-answer">按实际使用的 Token 收费，再乘以你所选分组的倍率。命中缓存的部分按折扣价计算，reasoning Token 按输出价格计算。充值按 1 元人民币兑换 1 美元额度入账。每笔用量和费用都能在控制台查看，也可以导出账单核对。</p></details>
+          <details><summary>我的数据安全吗？</summary><p class="byte-answer">你的对话内容不会在平台上保存。</p></details>
+          <details><summary>现在可以在线充值吗？</summary><p class="byte-answer">在线充值将支持支付宝，目前正在准备中。开放时间请留意控制台通知。</p></details>
+        </div></div>
+        <div data-byte-lang="zh-TW" lang="zh-TW"><div class="byte-faq-heading"><p class="byte-section-label">Q & A</p><h2>你可能想知道的。</h2></div><div class="byte-questions">
+          <details><summary>什麼是 AI 中轉站？能用哪些模型？</summary><p class="byte-answer">AI 中轉站提供統一的 API 接入入口，方便你管理 Key、查看用量。你的 Key 能呼叫哪些模型，取決於所屬分組和權限。模型和價格可以在<a href="/model-plaza">模型價格</a>頁面查看，實際可用清單以目前 Key 的 <code>/v1/models</code> 回傳結果為準。</p></details>
+          <details><summary>怎麼計費？快取怎麼算？</summary><p class="byte-answer">按實際使用的 Token 收費，再乘以你所選分組的倍率。命中快取的部分按折扣價計算，reasoning Token 按輸出價格計算。充值按 1 元人民幣兌換 1 美元額度入帳。每筆用量和費用都能在控制台查看，也可以匯出帳單核對。</p></details>
+          <details><summary>我的資料安全嗎？</summary><p class="byte-answer">你的對話內容不會在平台上保存。</p></details>
+          <details><summary>現在可以線上充值嗎？</summary><p class="byte-answer">線上充值將支援支付寶，目前正在準備中。開放時間請留意控制台通知。</p></details>
+        </div></div>
+        <div data-byte-lang="en" lang="en"><div class="byte-faq-heading"><p class="byte-section-label">Q & A</p><h2>A few things to know.</h2></div><div class="byte-questions">
+          <details><summary>What is an AI API relay, and which models can I use?</summary><p class="byte-answer">An AI API relay gives you one place to connect, manage Keys, and track usage. The models you can call depend on your Key’s group and permissions. Browse the <a href="/model-plaza">model pricing</a> page for models and prices. Your Key’s <code>/v1/models</code> response is the final list of available models.</p></details>
+          <details><summary>How does billing work, including caching?</summary><p class="byte-answer">You pay for the Tokens actually used, multiplied by your selected group’s rate multiplier. Cache hits are charged at a discounted rate, and reasoning Tokens are charged as output Tokens. Each RMB 1 top-up adds USD 1 in account credit. You can review every usage record and charge in the console, and export your bill to reconcile it.</p></details>
+          <details><summary>Is my data safe?</summary><p class="byte-answer">Your conversations are not stored on the platform.</p></details>
+          <details><summary>Can I top up online now?</summary><p class="byte-answer">Online top-ups with Alipay are being prepared. Check the console announcements for the launch date.</p></details>
+        </div></div>
+      </section>
+    </main>
+    <footer>
+      <div data-byte-lang="zh-CN" lang="zh-CN"><div class="byte-footer"><p>© 2026 ByteAPI. 简单接入，专注创造。</p><nav class="byte-footer-links" aria-label="Footer"><a href="/model-plaza">模型价格</a><a href="/login">登录</a><a href="#byte-faq">常见问题</a></nav></div></div>
+      <div data-byte-lang="zh-TW" lang="zh-TW"><div class="byte-footer"><p>© 2026 ByteAPI. 簡單接入，專注創造。</p><nav class="byte-footer-links" aria-label="Footer"><a href="/model-plaza">模型價格</a><a href="/login">登入</a><a href="#byte-faq">常見問題</a></nav></div></div>
+      <div data-byte-lang="en" lang="en"><div class="byte-footer"><p>© 2026 ByteAPI. Connect simply. Focus on creating.</p><nav class="byte-footer-links" aria-label="Footer"><a href="/model-plaza">Model pricing</a><a href="/login">Log in</a><a href="#byte-faq">FAQ</a></nav></div></div>
+    </footer>
+  </div>
+</div>
