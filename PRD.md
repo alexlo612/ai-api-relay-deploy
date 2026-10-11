@@ -1,6 +1,6 @@
 # AI API Relay 部署需求
 
-**版本：** v1.0（2026-09-28）
+**版本：** v1.1（2026-10-11）
 **狀態：** 本文件描述此 repo 的目標部署；VPS 實際狀態及驗證證據見
 [`docs/current-state.md`](docs/current-state.md)。
 
@@ -61,8 +61,8 @@ Infra Nginx 的 routes 必須使用 `sub2api:8080` 及 `new-api:3000`。Relay
 
 | Service image | 固定 tag | 備註 |
 |---|---|---|
-| `weishaw/sub2api` | `0.2.9` | stable；升級須先備份並檢查 migration |
-| `calciumion/new-api` | `v1.0.0-rc.40` | 最新 RC；`v0.13.2` 是較舊正式版。維持現行 tag，避免未驗證的降版 |
+| `weishaw/sub2api` | `0.2.15` | 2026-10-11 查核的最新正式 tag；升級須先備份並檢查 migration |
+| `calciumion/new-api` | `v1.0.0-rc.40` | 維持已部署版本；2026-10-11 上游最新為 RC.43，升級另行審查 |
 | `postgres` | `16.15-alpine` | PostgreSQL 16 patch release |
 | `redis` | `7.4.11-alpine` | Redis 7.4 patch release |
 
@@ -70,13 +70,13 @@ PostgreSQL 為兩個應用建立獨立 database 及帳號。Redis 啟用 AOF 和
 Sub2API 使用 DB 0、New API 使用 DB 1。應用 data、PostgreSQL、Redis 和
 New API logs 都用 Compose named volumes 持久化。
 
-截至 2026-09-28，上游 Release 頁將 `v1.0.0-rc.40` 標為最新 release；
-`v0.13.2` 是最後查到的非 RC 正式版，發布於 2026-04-27。RC.40 不是
-stable。由於現行部署已使用 RC.40，建議維持該 tag，等 v1.0.0 正式版或
-完成獨立相容性與還原演練後再評估切換。參考：
+截至 2026-10-11，上游最新 release 為 `v1.0.0-rc.43`；最後查到的
+非預覽正式版仍是 2026-04-27 發布的 `v0.13.2`。目前部署使用 RC.40，
+維持該 tag，等 v1.0.0 正式版或完成獨立相容性與還原演練後再評估切換。參考：
 [官方 release list](https://github.com/QuantumNous/new-api/releases)、
 [v0.13.2](https://github.com/QuantumNous/new-api/releases/tag/v0.13.2)、
-[v1.0.0-rc.40](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.40)。
+[v1.0.0-rc.40](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.40)、
+[v1.0.0-rc.43](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.43)。
 
 ## 4. Secret、備份與復原
 

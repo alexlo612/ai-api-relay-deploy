@@ -73,6 +73,10 @@ logs，並附 SHA-256 checksum。備份目的地與保留日數由 `.env` 的
 替換資料；script 驗證 checksum 後仍會要求輸入 `RESTORE`。非互動還原須
 明確傳入 `--yes`：
 
+若本次備份必須保留超過保留期的既有封存，使用
+`BACKUP_SKIP_PRUNE=1 make backup`；更新時用
+`BACKUP_SKIP_PRUNE=1 make update`。此選項只跳過當次清理，仍會建立完整備份。
+
 ```bash
 ./scripts/restore.sh --file /home/alex/backups/ai-api-relay/backup-YYYYMMDD-HHMMSS.tar.gz --yes
 ```
@@ -82,8 +86,10 @@ logs，並附 SHA-256 checksum。備份目的地與保留日數由 `.env` 的
 
 ## Image 更新
 
-已審閱版本列於 Compose image 預設值和 `.env.example`。正式環境從受保護
-`.env` 讀取 tag。檢查 upstream release notes、安排維護時段，再執行：
+已審閱版本列於 Compose image 預設值和 `.env.example`；Sub2API 目前固定
+`0.2.15`，不使用浮動的 `latest`。正式環境從受保護 `.env` 讀取 tag，
+變更 Compose 預設值不會自動覆蓋正式環境。檢查 upstream release notes、
+核對現有容器與 volumes 並安排維護時段，再執行：
 
 ```bash
 make update
@@ -91,8 +97,8 @@ make health
 ```
 
 PostgreSQL 和 Redis 使用固定 patch tag；應用版本更新可能執行 database
-migration。New API 最新 release 是 RC `v1.0.0-rc.40`；最後查到的正式版是
-`v0.13.2`。目前維持已部署的 RC.40，不要直接降到舊正式版。切換版本前先
+migration。2026-10-11 查得 New API 最新 release 是 RC `v1.0.0-rc.43`；
+最後查到的正式版是 `v0.13.2`。目前維持已部署的 RC.40，不要直接降到舊正式版。切換版本前先
 讀 [官方 release notes](https://github.com/QuantumNous/new-api/releases)，並
 完成資料庫相容性與還原演練。
 

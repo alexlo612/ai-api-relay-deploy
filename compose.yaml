@@ -74,7 +74,7 @@ services:
     logging: *default-logging
 
   sub2api:
-    image: weishaw/sub2api:${SUB2API_IMAGE_TAG:-0.2.9}
+    image: weishaw/sub2api:${SUB2API_IMAGE_TAG:-0.2.15}
     restart: unless-stopped
     cpus: ${SUB2API_CPUS:-1.0}
     mem_limit: ${SUB2API_MEM_LIMIT:-768m}

@@ -85,6 +85,8 @@
 #byte-home .byte-credit-title { margin:0 0 5px; font-size:15px; font-weight:500; }
 #byte-home .byte-credit-title strong { color:var(--accent); font-size:18px; font-weight:650; white-space:nowrap; }
 #byte-home .byte-credit-copy { margin:0; color:var(--muted); font-size:12px; line-height:1.9; text-wrap:pretty; }
+#byte-home .byte-credit-pay { margin:8px 0 0; color:var(--muted); font-size:12px; line-height:1.9; }
+#byte-home .byte-credit-pay a { color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
 @media(max-width:760px) {
  #byte-home .byte-control { height:40px; padding:0 10px; gap:7px; font-size:12px; }
  #byte-home .byte-language-control { width:78px; height:40px; flex-shrink:0; }
@@ -118,21 +120,21 @@
           <p class="byte-lead">一套配置，接入 Claude Code、Codex、Cursor 和 Antigravity。<br>工具随你选，配置不用反复改。</p>
           <p class="byte-direct"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/></svg><span>直连就能用，无需 VPN</span></p>
           <a class="byte-button" href="/model-plaza">查看模型价格 <span class="byte-arrow" aria-hidden="true">→</span></a>
-          <div class="byte-credit"><p class="byte-credit-title">人民币充值，美金额度 <strong>1 : 1</strong></p><p class="byte-credit-copy">充 1 元，得 1 美元额度。官方约 7 元的额度，这里 1 元就有；使用模型，还能再享分组倍率折扣。</p></div>
+          <div class="byte-credit"><p class="byte-credit-title">人民币充值，美金额度 <strong>1 : 1</strong></p><p class="byte-credit-copy">充 1 元，得 1 美元额度。官方约 7 元的额度，这里 1 元就有；使用模型，还能再享分组倍率折扣。</p><p class="byte-credit-pay">登录后前往<a href="/purchase">充值页面</a>，使用 Stripe 微信支付或信用卡。</p></div>
         </div>
         <div data-byte-lang="zh-TW" lang="zh-TW">
           <h1><span>一個 Key，</span><span>全網模型。</span></h1>
           <p class="byte-lead">一套設定，接入 Claude Code、Codex、Cursor 和 Antigravity。<br>工具隨你選，設定不用反覆改。</p>
           <p class="byte-direct"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/></svg><span>直連就能用，無需 VPN</span></p>
           <a class="byte-button" href="/model-plaza">查看模型價格 <span class="byte-arrow" aria-hidden="true">→</span></a>
-          <div class="byte-credit"><p class="byte-credit-title">人民幣充值，美金額度 <strong>1 : 1</strong></p><p class="byte-credit-copy">充 1 元，得 1 美元額度。官方約 7 元的額度，這裡 1 元就有；使用模型，還能再享分組倍率折扣。</p></div>
+          <div class="byte-credit"><p class="byte-credit-title">人民幣充值，美金額度 <strong>1 : 1</strong></p><p class="byte-credit-copy">充 1 元，得 1 美元額度。官方約 7 元的額度，這裡 1 元就有；使用模型，還能再享分組倍率折扣。</p><p class="byte-credit-pay">登入後前往<a href="/purchase">充值頁面</a>，使用 Stripe 微信支付或信用卡。</p></div>
         </div>
         <div data-byte-lang="en" lang="en">
           <h1><span>One Key.</span><span>Every model.</span></h1>
           <p class="byte-lead">One setup for Claude Code, Codex, Cursor, and Antigravity.<br>Choose your tool. Keep the same setup.</p>
           <p class="byte-direct"><svg class="byte-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/></svg><span>Connect directly. No VPN needed.</span></p>
           <a class="byte-button" href="/model-plaza">View model pricing <span class="byte-arrow" aria-hidden="true">→</span></a>
-          <div class="byte-credit"><p class="byte-credit-title">Top up in RMB. Get USD credit at <strong>1 : 1</strong></p><p class="byte-credit-copy">RMB 1 adds USD 1 in credit. Credit that costs around RMB 7 at official rates costs RMB 1 here, with group rate discounts on top.</p></div>
+          <div class="byte-credit"><p class="byte-credit-title">Top up in RMB. Get USD credit at <strong>1 : 1</strong></p><p class="byte-credit-copy">RMB 1 adds USD 1 in credit. Credit that costs around RMB 7 at official rates costs RMB 1 here, with group rate discounts on top.</p><p class="byte-credit-pay">Log in and visit <a href="/purchase">Top up</a> to pay with WeChat Pay or a credit card via Stripe.</p></div>
         </div>
       </section>
       <section class="byte-faq" id="byte-faq" aria-label="FAQ">
@@ -140,19 +142,19 @@
           <details><summary>什么是 AI 中转站？能用哪些模型？</summary><p class="byte-answer">AI 中转站提供统一的 API 接入入口，方便你管理 Key、查看用量。你的 Key 能调用哪些模型，取决于所属分组和权限。模型和价格可以在<a href="/model-plaza">模型价格</a>页面查看，实际可用列表以当前 Key 的 <code>/v1/models</code> 返回结果为准。</p></details>
           <details><summary>怎么计费？缓存怎么算？</summary><p class="byte-answer">按实际使用的 Token 收费，再乘以你所选分组的倍率。命中缓存的部分按折扣价计算，reasoning Token 按输出价格计算。充值按 1 元人民币兑换 1 美元额度入账。每笔用量和费用都能在控制台查看，也可以导出账单核对。</p></details>
           <details><summary>我的数据安全吗？</summary><p class="byte-answer">你的对话内容不会在平台上保存。</p></details>
-          <details><summary>现在可以在线充值吗？</summary><p class="byte-answer">在线充值将支持支付宝，目前正在准备中。开放时间请留意控制台通知。</p></details>
+          <details><summary>如何在线充值？</summary><p class="byte-answer">支持微信支付或信用卡。</p></details>
         </div></div>
         <div data-byte-lang="zh-TW" lang="zh-TW"><div class="byte-faq-heading"><p class="byte-section-label">Q & A</p><h2>你可能想知道的。</h2></div><div class="byte-questions">
           <details><summary>什麼是 AI 中轉站？能用哪些模型？</summary><p class="byte-answer">AI 中轉站提供統一的 API 接入入口，方便你管理 Key、查看用量。你的 Key 能呼叫哪些模型，取決於所屬分組和權限。模型和價格可以在<a href="/model-plaza">模型價格</a>頁面查看，實際可用清單以目前 Key 的 <code>/v1/models</code> 回傳結果為準。</p></details>
           <details><summary>怎麼計費？快取怎麼算？</summary><p class="byte-answer">按實際使用的 Token 收費，再乘以你所選分組的倍率。命中快取的部分按折扣價計算，reasoning Token 按輸出價格計算。充值按 1 元人民幣兌換 1 美元額度入帳。每筆用量和費用都能在控制台查看，也可以匯出帳單核對。</p></details>
           <details><summary>我的資料安全嗎？</summary><p class="byte-answer">你的對話內容不會在平台上保存。</p></details>
-          <details><summary>現在可以線上充值嗎？</summary><p class="byte-answer">線上充值將支援支付寶，目前正在準備中。開放時間請留意控制台通知。</p></details>
+          <details><summary>如何線上充值？</summary><p class="byte-answer">支援微信支付或信用卡。</p></details>
         </div></div>
         <div data-byte-lang="en" lang="en"><div class="byte-faq-heading"><p class="byte-section-label">Q & A</p><h2>A few things to know.</h2></div><div class="byte-questions">
           <details><summary>What is an AI API relay, and which models can I use?</summary><p class="byte-answer">An AI API relay gives you one place to connect, manage Keys, and track usage. The models you can call depend on your Key’s group and permissions. Browse the <a href="/model-plaza">model pricing</a> page for models and prices. Your Key’s <code>/v1/models</code> response is the final list of available models.</p></details>
           <details><summary>How does billing work, including caching?</summary><p class="byte-answer">You pay for the Tokens actually used, multiplied by your selected group’s rate multiplier. Cache hits are charged at a discounted rate, and reasoning Tokens are charged as output Tokens. Each RMB 1 top-up adds USD 1 in account credit. You can review every usage record and charge in the console, and export your bill to reconcile it.</p></details>
           <details><summary>Is my data safe?</summary><p class="byte-answer">Your conversations are not stored on the platform.</p></details>
-          <details><summary>Can I top up online now?</summary><p class="byte-answer">Online top-ups with Alipay are being prepared. Check the console announcements for the launch date.</p></details>
+          <details><summary>How do I top up online?</summary><p class="byte-answer">WeChat Pay and credit cards are supported.</p></details>
         </div></div>
       </section>
     </main>

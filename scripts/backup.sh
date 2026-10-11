@@ -40,7 +40,11 @@ main() {
   (cd "${backup_root}" && shasum -a 256 "backup-${ts}.tar.gz" > "backup-${ts}.tar.gz.sha256")
   rm -rf "${backup_dir}"
 
-  find "${backup_root}" -type f -name 'backup-*.tar.gz*' -mtime "+${BACKUP_RETENTION_DAYS:-14}" -print -delete
+  if [[ "${BACKUP_SKIP_PRUNE:-0}" != "1" ]]; then
+    find "${backup_root}" -type f -name 'backup-*.tar.gz*' -mtime "+${BACKUP_RETENTION_DAYS:-14}" -print -delete
+  else
+    log "Skipping retention pruning for this backup."
+  fi
   log "Backup created: ${archive}"
 }
 
