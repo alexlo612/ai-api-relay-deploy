@@ -23,6 +23,12 @@ WeChat Pay HK 相容性註記。正式 `/home` 和 `/purchase` 均已在瀏覽�
 10、20、50、100、200、500、1000、2000、5000；目前可用自訂金額輸入 ¥5，
 快捷按鈕未改動。以下初次部署時間、SHA 和備份資料保留為當時的歷史紀錄。
 
+同日 [PR #8](https://github.com/alexlo612/ai-api-relay-deploy/pull/8)
+將最新首頁來源與固定 Sub2API `0.2.15` 映像同步至 GitHub、本機及 VPS。
+重建後的正式首頁再次確認繁體 FAQ 答案與 `/purchase` 入口；付款設定與
+充值頁說明仍在。備份、容器健康和未驗證項目見
+[現況紀錄](current-state.md)。
+
 ## 設計與入口
 
 - 固定深色，白色標誌與 ByteAPI 字標，居中極簡首屏。

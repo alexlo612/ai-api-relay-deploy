@@ -1,26 +1,52 @@
 # Current deployment evidence
 
-## 2026-10-11 核對與同步進行中
+## 2026-10-11 Sub2API 版本與付款文案同步
 
-以下為 2026-10-11 的新觀察；下文各節保留原日期的歷史結果，不能把
-2026-10-01 的 Payment OFF、空白首頁或 runtime `0.2.11` 當作現況。
+**驗證時間：** 2026-10-11 04:03 UTC 前後，VPS 以 `alex` 執行，無 `sudo`。
+下文各節保留原日期的歷史結果，不能把 2026-10-01 的 Payment OFF、
+空白首頁或 runtime `0.2.11` 當作現況。
 
 - Sub2API 管理頁顯示 `v0.2.15`；自訂 ByteAPI 首頁已載入，繁體充值 FAQ
   答案為「支援微信支付或信用卡」。支付設定已啟用，Stripe CNY 實例勾選
   銀行卡及微信支付；最低 ¥5、最高 ¥1000、充值倍率 1 CNY 入帳 1 USD。
   充值頁幫助文本提供付款步驟與客服微信，沒有 WeChat Pay HK 相容性註記。
   這是 UI 設定與顯示查核，未於本輪執行付款、退款或 webhook 測試。
-- VPS 以 `alex` 唯讀檢查：四容器均 healthy、無公開 host ports；Compose
-  image 仍是 `weishaw/sub2api:0.2.9`，但容器執行檔 `-version` 回報
-  `0.2.15`（commit `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2`）。
-  五個 app／資料 named volumes 仍在；另有兩個舊 infra 遺留 volumes，
-  本次不處理。VPS checkout 的 `config/sub2api/` 有三個未追蹤歷史 HTML，
-  同步時須保留。
-- 查核時 `origin/main` 已包含首頁 v3 的 PR #7，VPS checkout 尚未更新；
-  上游最新正式 Sub2API release 為 `v0.2.15`（2026-10-09 發布）。
-  本次預備改用固定映像 `0.2.15`，保留舊備份並先建立新備份。
+- 升級前 Compose image 為 `weishaw/sub2api:0.2.9`，容器內執行檔已被
+  更新為 `0.2.15`。上游最新正式 release 是 2026-10-09 的 `v0.2.15`。
+  [PR #8](https://github.com/alexlo612/ai-api-relay-deploy/pull/8) 的 CI
+  通過後合併；映像部署時 local 與 VPS `main` 均快轉到 `8ceb7cf`。Compose 預設和
+  受保護 `.env` 的 `SUB2API_IMAGE_TAG` 均改為固定 `0.2.15`，不使用浮動
+  `latest`；正式 `.env` 仍為 `alex` 擁有、mode `0600`，未輸出任何值。
+- 更新前以 `BACKUP_SKIP_PRUNE=1 make backup` 建立
+  `/home/alex/backups/ai-api-relay/backup-20261011-035924.tar.gz`，SHA-256
+  `fd83651f4225fede57e3be3e9bf89e56ebba5e3a85c5f87cd961912705a83493`。
+  `sha256sum -c` 通過，tar 清單有兩份 PostgreSQL dump 與四個 app／Redis
+  volumes 的封存；三份 9 月 28 日的舊備份仍在。更改前的 `.env` 副本
+  保存在同一受保護備份目錄，mode `0600`，未加入 Git。
+- 先以 `docker compose config --quiet` 驗證，再 `docker compose pull sub2api`
+  及 `docker compose up -d --no-deps --wait --wait-timeout 180 sub2api`。
+  新 image ID 為
+  `sha256:da0fd94daebf890419e21e956821fd6c2008fc666f9617f2eb917f4492245da3`；
+  容器執行檔回報 `0.2.15`，commit
+  `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2`。
+- `make health` 通過：四個 Relay 容器 healthy、沒有 OOM；Sub2API 內部
+  `/health` 與 New API 內部 `/api/status` 正常。Docker inspect 選定欄位
+  顯示四容器 host PortBindings 都是 `{}`，只有兩個 web apps 接
+  `vps-infra_ingress`，PostgreSQL／Redis 只有 private backend。
+  Sub2API 仍掛載原 `ai-api-relay_sub2api_data` volume；New API、PG、Redis
+  容器未重建。未更動 infra routes、TLS、其他服務或資料卷。
+- VPS checkout 原有三份未追蹤歷史首頁 HTML。更新前將會與追蹤檔衝突的
+  v3 舊稿移到 `/home/alex/backups/ai-api-relay/homepage-pre-sync-20261011/`，
+  SHA-256 `3c07c94fa463a2ac824db93e730f2b46744882ef989cde36969de70298f6967e`；
+  其餘兩份保留原位。Git 追蹤的 v3 來源在 local／VPS 一致，SHA-256
+  `922be2c390c84826ad5504b123a55b966b3ccd92f5ef6032696b68df40a94e74`。
 - New API 上游在 2026-10-10 發布 RC.43；本部署仍固定 RC.40，未在本輪
   變更。下文 2026-09-28 稱 RC.40 為最新，僅代表當時查核結果。
+
+**未涵蓋：** 乾淨環境 restore 演練、實際微信支付／信用卡付款、webhook
+重送與入帳、退款、普通使用者端到端、跨瀏覽器版面及 infra 對外入口檢查。
+充值頁快捷金額仍由 Sub2API v0.2.15 前端固定，包含 5000；最低 ¥5 可用
+自訂金額輸入。
 
 ## New API public hostname
 
