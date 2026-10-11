@@ -66,9 +66,12 @@ not issue or renew TLS certificates; `vps-infra` owns that lifecycle.
 ## Image versions
 
 Every image has an explicit tag in `compose.yaml`, with the selected tag
-recorded in `.env`. Sub2API, PostgreSQL, and Redis use fixed release tags. New
-API's latest upstream release is `v1.0.0-rc.40` (an RC); the last formal stable
-tag is `v0.13.2`, released on 2026-04-27. This deployment is already on RC.40,
+recorded in `.env`. Sub2API is pinned to `0.2.15` (the latest upstream release
+checked on 2026-10-11); `latest` is deliberately not used. PostgreSQL and Redis
+also use fixed release tags. New
+API's latest upstream release checked on 2026-10-11 is `v1.0.0-rc.43`; the last
+non-prerelease tag found is `v0.13.2`, released on 2026-04-27. This deployment
+remains on RC.40,
 so keep it pinned until v1.0 GA or a tested compatibility and restore plan is
 available. See the [upstream release list](https://github.com/QuantumNous/new-api/releases)
 and [v0.13.2 release](https://github.com/QuantumNous/new-api/releases/tag/v0.13.2).
@@ -119,4 +122,9 @@ The `vps-infra` repository owns ingress and TLS checks.
 - [Operator guide](USER_GUIDE.md)
 - [Project requirements](PRD.md)
 - [Current deployment evidence](docs/current-state.md)
+- [ByteAPI homepage source and deployment notes](docs/sub2api-homepage-deployment.md)
+- [2026-10-01 public-service comparison](docs/sub2api-public-service-comparison.md)
+- [2026-10-01 public-service plan](docs/sub2api-public-service-plan.md)
+- [2026-10-01 feature setup reference](docs/sub2api-feature-setup-guide.md)
+- [2026-10-04 competitor homepage research](docs/competitor-homepage-review.md)
 - [Work checklist](TODO.md)
